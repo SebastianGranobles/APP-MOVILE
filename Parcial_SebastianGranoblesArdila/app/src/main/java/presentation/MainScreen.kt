@@ -1,8 +1,23 @@
 package com.example.parcial_sebastiangranoblesardila.presentation
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -28,7 +43,7 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
     }
 
     if (!isLoggedIn || currentUser == null) {
-        return
+        return // Muestra una pantalla en blanco mientras se redirige
     }
 
     Scaffold(
@@ -61,6 +76,7 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
 
             Spacer(modifier = Modifier.height(48.dp))
 
+            // 1. Botón Tarjeta de Usuario
             Button(
                 onClick = { navController.navigate("user_route") },
                 modifier = Modifier.fillMaxWidth().height(50.dp)
@@ -70,6 +86,7 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // 2. Botón Ajustes de Perfil
             Button(
                 onClick = { navController.navigate("profile_route") },
                 modifier = Modifier.fillMaxWidth().height(50.dp)
@@ -77,7 +94,19 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
                 Text("AJUSTES DE PERFIL")
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ⭐ BOTÓN AÑADIDO: Para ver el historial de contraseñas
+            OutlinedButton(
+                onClick = { navController.navigate("password_history_route") },
+                modifier = Modifier.fillMaxWidth().height(50.dp)
+            ) {
+                Text("VER HISTORIAL DE CONTRASEÑAS")
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
+
+            // Botón de Cerrar Sesión
             Button(
                 onClick = { userViewModel.logout() },
                 modifier = Modifier.fillMaxWidth().height(50.dp)
