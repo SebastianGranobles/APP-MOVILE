@@ -1,4 +1,4 @@
-package com.example.parcial_sebastiangranoblesardila.presentation.viewmodel // <-- ARREGLO #1: Paquete corregido
+package com.example.parcial_sebastiangranoblesardila.presentation.viewmodel
 
 import android.net.Uri
 import androidx.compose.runtime.State
@@ -7,60 +7,86 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 
-// Estructura de datos para el usuario
+
 data class UserData(
-    val fullName: String = "", // Cambiado a fullName para ser más claro
-    val profileImageUri: Uri? = null
+    val fullName: String,
+    val email: String,
+    val profileImageUri: Uri?,
+    // Nuevos campos
+    val phone: String = "",
+    val age: String = "",
+    val city: String = "",
+    val nationality: String = ""
 )
 
 class UserViewModel : ViewModel() {
 
-    // --- ESTADO DEL USUARIO ---
-    private val _userState = mutableStateOf(UserData())
-    val userState: State<UserData> = _userState
 
-    // --- ESTADO DE LA SESIÓN (LOGIN) ---
-    // Esta variable es la que controla si el usuario ha iniciado sesión o no.
+    private val _userState = mutableStateOf<UserData?>(null)
+    val userState: State<UserData?> = _userState
+
     var isLoggedIn by mutableStateOf(false)
-        private set // Solo el ViewModel puede cambiar este valor
+        private set
 
-    // --- DATOS HARCODEADOS (PRIVADOS) ---
-    private val hardcodedUser = "Sebastian Granobles Ardila"
-    private val hardcodedPass = "1144109752"
+    val nationalities: List<String> = listOf(
+        "Afgana", "Albanesa", "Alemana", "Andorrana", "Angoleña", "Argelina", "Argentina",
+        "Australiana", "Austriaca", "Bangladesí", "Belga", "Bielorrusa", "Boliviana",
+        "Bosnia", "Brasileña", "Búlgara", "Canadiense", "Chilena", "China", "Chipriota",
+        "Colombiana", "Costarricense", "Croata", "Cubana", "Danesa", "Dominicana",
+        "Ecuatoriana", "Egipcia", "Salvadoreña", "Eslovaca", "Eslovena", "Española",
+        "Estadounidense", "Estonia", "Filipina", "Finlandesa", "Francesa", "Griega",
+        "Guatemalteca", "Hondureña", "Húngara", "India", "Indonesa", "Irlandesa",
+        "Islandesa", "Israelí", "Italiana", "Japonesa", "Letona", "Lituana", "Luxemburguesa",
+        "Marroquí", "Mexicana", "Nicaragüense", "Noruega", "Neozelandesa", "Panameña",
+        "Paraguaya", "Peruana", "Polaca", "Portuguesa", "Puertorriqueña", "Británica",
+        "Checa", "Rumana", "Rusa", "Serbia", "Sueca", "Suiza", "Tailandesa", "Turca",
+        "Ucraniana", "Uruguaya", "Venezolana", "Vietnamita"
+    )
 
-    /**
-     * Valida las credenciales del usuario y actualiza el estado de la sesión.
-     */
-    fun onLogin(user: String, pass: String): Boolean {
-        return if (user == hardcodedUser && pass == hardcodedPass) {
-            // Si las credenciales son correctas:
-            // 1. Actualizamos los datos del usuario.
-            _userState.value = UserData(fullName = user, profileImageUri = null)
-            // 2. Marcamos la sesión como iniciada. ¡ESTO ES CRUCIAL!
-            isLoggedIn = true // <-- ARREGLO #2: Lógica de sesión añadida
+    private val hardcodedEmail = "sebastiangranobles@hotmail.com"
+    private var hardcodedPass by mutableStateOf("llulucasia2025")
+    private val hardcodedFullName = "Sebastian Granobles Ardila"
+
+    fun onLogin(email: String, pass: String): Boolean {
+        return if (email == hardcodedEmail && pass == hardcodedPass) {
+            // Al hacer login, cargamos los datos iniciales del usuario
+            _userState.value = UserData(
+                fullName = hardcodedFullName,
+                email = hardcodedEmail,
+                profileImageUri = null
+            )
+            isLoggedIn = true
             true
         } else {
-            // Si las credenciales son incorrectas, nos aseguramos de que la sesión esté cerrada.
             isLoggedIn = false
             false
         }
     }
 
-    /**
-     * Cierra la sesión del usuario.
-     */
     fun logout() {
         isLoggedIn = false
-        // Opcional: limpiar los datos del usuario al cerrar sesión.
-        _userState.value = UserData()
+        _userState.value = null
     }
 
-    /**
-     * Actualiza la imagen de perfil del usuario.
-     */
+
     fun onProfileImageChange(uri: Uri?) {
-        _userState.value = _userState.value.copy(
-            profileImageUri = uri
+        _userState.value = _userState.value?.copy(profileImageUri = uri)
+    }
+
+    fun updateUserInfo(phone: String, age: String, city: String, nationality: String) {
+        _userState.value = _userState.value?.copy(
+            phone = phone,
+            age = age,
+            city = city,
+            nationality = nationality
         )
+    }
+
+    fun changePassword(currentPass: String, newPass: String): Boolean {
+        if (currentPass == this.hardcodedPass) {
+            this.hardcodedPass = newPass
+            return true //
+        }
+        return false //
     }
 }

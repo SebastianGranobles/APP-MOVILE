@@ -1,5 +1,3 @@
-// PASO 1: Asegúrate de que la carpeta se llame 'presentation' (minúscula)
-// y que esta línea también esté en minúscula.
 package com.example.parcial_sebastiangranoblesardila.presentation
 
 import androidx.compose.foundation.layout.*
@@ -11,18 +9,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-// ⭐ ARREGLO CLAVE: La importación ahora busca el ViewModel en la ruta correcta
-// con 'presentation' en minúscula.
 import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.UserViewModel
 
-@OptIn(ExperimentalMaterial3Api::class) // Buena práctica para APIs de Material 3
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController, userViewModel: UserViewModel) {
-    var username by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -37,17 +32,17 @@ fun LoginScreen(navController: NavController, userViewModel: UserViewModel) {
             text = "Iniciar Sesión",
             fontSize = 32.sp,
             color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.headlineLarge // Usar estilos del tema es una buena práctica
+            style = MaterialTheme.typography.headlineLarge
         )
 
         Spacer(modifier = Modifier.height(48.dp))
-
         OutlinedTextField(
-            value = username,
-            onValueChange = { username = it },
-            label = { Text("Nombre de Usuario") },
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Correo Electrónico") },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -62,48 +57,37 @@ fun LoginScreen(navController: NavController, userViewModel: UserViewModel) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
         )
 
-        TextButton(
-            onClick = {
-                navController.navigate("recover_password_route")
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = "¿Olvidaste tu contraseña?",
-                textAlign = TextAlign.End,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Mostrar mensaje de error si existe
         if (errorMessage != null) {
             Text(
                 text = errorMessage!!,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
+                modifier = Modifier.padding(bottom = 8.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
         Button(
             onClick = {
-                // La lógica aquí ahora funcionará porque el ViewModel se importa correctamente.
-                val loginSuccessful = userViewModel.onLogin(username, password)
+                val loginSuccessful = userViewModel.onLogin(email, password)
                 if (loginSuccessful) {
-                    errorMessage = null // Limpiar error si el login es exitoso
+                    errorMessage = null
                     navController.navigate("main_route") {
                         popUpTo("login_route") { inclusive = true }
                     }
                 } else {
-                    errorMessage = "Usuario o contraseña incorrectos."
+                    errorMessage = "Correo o contraseña incorrectos."
                 }
             },
-            modifier = Modifier.fillMaxWidth().height(50.dp) // Dar altura fija mejora la consistencia visual
+            modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
             Text(text = "ACCEDER")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextButton(onClick = { navController.navigate("recover_password_route") }) {
+            Text("Cambiar contraseña")
         }
     }
 }

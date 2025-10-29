@@ -14,12 +14,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-// import androidx.compose.ui.res.painterResource // <-- Tampoco esta
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-// import com.example.parcial_sebastiangranoblesardila.R // <-- Ni esta
 import kotlinx.coroutines.delay
 
 @Composable
@@ -28,29 +26,25 @@ fun SplashScreen(navController: NavController) {
 
     val alphaAnimation = animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
-        animationSpec = tween(durationMillis = 1500), // Animación de aparición suave.
+        animationSpec = tween(durationMillis = 1500),
         label = "splash_alpha_animation"
     )
 
-    // Este efecto se ejecuta una sola vez para controlar la animación y la navegación.
-    LaunchedEffect(key1 = true) {
-        startAnimation = true // Inicia la animación.
-        delay(2500L) // Espera 2.5 segundos.
 
-        // Navega a la pantalla de login y elimina la splash screen del historial.
+    LaunchedEffect(key1 = true) {
+        startAnimation = true
+        delay(2500L)
         navController.navigate("login_route") {
             popUpTo("splash_route") { inclusive = true }
         }
     }
-
-    // Contenedor principal que centra todo.
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
-        // Columna que ahora solo contiene el texto, con la animación de aparición.
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -60,7 +54,7 @@ fun SplashScreen(navController: NavController) {
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Bienvenidos",
+                text = "Bank-Michi",
                 color = MaterialTheme.colorScheme.primary,
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold
