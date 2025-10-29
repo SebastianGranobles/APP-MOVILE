@@ -4,8 +4,7 @@
 A modern Android application built with Jetpack Compose that provides a secure user session management system. The app allows users to log in, view their profile, edit their personal information, and securely manage their credentials. It also includes an audit feature to track password changes.
 
 <br>
-
-https://github.com/Sebastian-Granobles-Ardila/Parcial/assets/169824634/1c08003a-c864-4e20-91da-2856fa2d2a45
+ https://github.com/SebastianGranobles/APP-MOVILE
 
 <br>
 
