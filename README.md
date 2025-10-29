@@ -53,5 +53,12 @@ The project is organized following a feature-based package structure to promote 
 
 1.  Clone the repository:
     bash
-    git clone https://github.com/SebastianGranobles/APP-MOVILE.git
+    git clone https://github.com/SebastianGranobles/APP-MOVILE
+
+    <img width="1677" height="467" alt="image" src="https://github.com/user-attachments/assets/08534aad-11d0-4041-8ad9-8cc30d8b2fcb" />
+
+
+    <img width="1668" height="892" alt="image" src="https://github.com/user-attachments/assets/cd30de94-ceb3-433a-b9cf-8f241b6a7147" />
+
+
     
