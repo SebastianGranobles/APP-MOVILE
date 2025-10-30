@@ -34,7 +34,7 @@ fun AppNavigation() {
         composable("recover_password_route") {
             RecuperarContraseñaScreen(navController = navController, userViewModel = userViewModel)
         }
-        // ⭐ RUTA AÑADIDA: La nueva pantalla para el historial de contraseñas
+
         composable("password_history_route") {
             PasswordHistoryScreen(navController = navController, userViewModel = userViewModel)
         }

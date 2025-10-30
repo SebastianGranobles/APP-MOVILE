@@ -64,7 +64,7 @@ fun PasswordHistoryScreen(navController: NavController, userViewModel: UserViewM
                     }
                 }
             } else {
-                items(history.reversed()) { log -> // .reversed() para mostrar lo más nuevo primero
+                items(history.reversed()) { log ->
                     LogEntryCard(log)
                 }
             }

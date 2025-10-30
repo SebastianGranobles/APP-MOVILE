@@ -43,7 +43,7 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
     }
 
     if (!isLoggedIn || currentUser == null) {
-        return // Muestra una pantalla en blanco mientras se redirige
+        return
     }
 
     Scaffold(
@@ -75,8 +75,6 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
             )
 
             Spacer(modifier = Modifier.height(48.dp))
-
-            // 1. Botón Tarjeta de Usuario
             Button(
                 onClick = { navController.navigate("user_route") },
                 modifier = Modifier.fillMaxWidth().height(50.dp)
@@ -95,8 +93,6 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            // ⭐ BOTÓN AÑADIDO: Para ver el historial de contraseñas
             OutlinedButton(
                 onClick = { navController.navigate("password_history_route") },
                 modifier = Modifier.fillMaxWidth().height(50.dp)
@@ -105,8 +101,6 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-
-            // Botón de Cerrar Sesión
             Button(
                 onClick = { userViewModel.logout() },
                 modifier = Modifier.fillMaxWidth().height(50.dp)
