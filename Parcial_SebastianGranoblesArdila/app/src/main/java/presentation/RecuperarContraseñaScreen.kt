@@ -2,35 +2,70 @@ package com.example.parcial_sebastiangranoblesardila.presentation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+// ⭐ ¡Asegúrate de que la ruta de importación es la correcta! ⭐
+import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.AuthState
 import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.UserViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecuperarContraseñaScreen(navController: NavController, userViewModel: UserViewModel) {
+
+    // --- ESTADOS LOCALES PARA LOS CAMPOS DE TEXTO ---
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
-    var confirmNewPassword by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
+    var confirmPassword by remember { mutableStateOf("") }
+    var localErrorMessage by remember { mutableStateOf<String?>(null) }
 
+    // --- OBSERVADORES DEL VIEWMODEL ---
+    val authState by userViewModel.authState.collectAsState()
+    val firebaseErrorMessage by userViewModel.errorMessage.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    LaunchedEffect(authState) {
+        when (authState) {
+            AuthState.SUCCESS -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("¡Contraseña cambiada con éxito!")
+                }
+                userViewModel.resetAuthState()
+                navController.popBackStack()
+            }
+            AuthState.ERROR -> {
+
+                firebaseErrorMessage?.let {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(it)
+                    }
+                }
+            }
+            else -> { /* No hacer nada en IDLE o LOADING */ }
+        }
+    }
+
+    // --- UI ---
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Cambiar Contraseña") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Volver")
+                    IconButton(onClick = {
+                        // Limpia el estado si el usuario cancela y se va
+                        userViewModel.resetAuthState()
+                        navController.popBackStack()
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
@@ -40,91 +75,78 @@ fun RecuperarContraseñaScreen(navController: NavController, userViewModel: User
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(32.dp),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text("Gestión de Contraseña", style = MaterialTheme.typography.headlineSmall)
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Campo para la contraseña actual
             OutlinedTextField(
                 value = currentPassword,
                 onValueChange = { currentPassword = it },
                 label = { Text("Contraseña Actual") },
-                modifier = Modifier.fillMaxWidth(),
                 visualTransformation = PasswordVisualTransformation(),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
             OutlinedTextField(
                 value = newPassword,
                 onValueChange = { newPassword = it },
                 label = { Text("Nueva Contraseña") },
-                modifier = Modifier.fillMaxWidth(),
                 visualTransformation = PasswordVisualTransformation(),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
             OutlinedTextField(
-                value = confirmNewPassword,
-                onValueChange = { confirmNewPassword = it },
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
                 label = { Text("Confirmar Nueva Contraseña") },
-                modifier = Modifier.fillMaxWidth(),
                 visualTransformation = PasswordVisualTransformation(),
-                isError = (newPassword != confirmNewPassword),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth(),
+                isError = newPassword != confirmPassword && confirmPassword.isNotEmpty()
             )
-
-
-            if (newPassword != confirmNewPassword && confirmNewPassword.isNotEmpty()) {
+            if (newPassword != confirmPassword && confirmPassword.isNotEmpty()) {
                 Text(
-                    "Las contraseñas nuevas no coinciden",
+                    text = "Las contraseñas no coinciden",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp).fillMaxWidth()
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-            Button(
-                onClick = {
+            localErrorMessage?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
 
-                    errorMessage = null
-                    successMessage = null
+            Spacer(modifier = Modifier.height(24.dp))
 
-                    // Validaciones
-                    if (currentPassword.isBlank() || newPassword.isBlank() || confirmNewPassword.isBlank()) {
-                        errorMessage = "Todos los campos son obligatorios."
-                    } else if (newPassword != confirmNewPassword) {
-                        errorMessage = "La nueva contraseña y su confirmación no coinciden."
-                    } else {
-                        val success = userViewModel.changePassword(
-                            currentPass = currentPassword,
-                            newPass = newPassword
-                        )
+            if (authState == AuthState.LOADING) {
+                CircularProgressIndicator()
+            } else {
+                Button(
+                    onClick = {
+                        localErrorMessage = null // Limpiar errores locales
+                        userViewModel.resetAuthState() // Limpiar errores de Firebase
 
-                        if (success) {
-                            successMessage = "¡Contraseña cambiada con éxito!"
-
-                            currentPassword = ""
-                            newPassword = ""
-                            confirmNewPassword = ""
+                        // Validaciones locales antes de llamar al ViewModel
+                        if (currentPassword.isBlank() || newPassword.isBlank() || confirmPassword.isBlank()) {
+                            localErrorMessage = "Todos los campos son obligatorios."
+                        } else if (newPassword != confirmPassword) {
+                            localErrorMessage = "Las contraseñas nuevas no coinciden."
                         } else {
-                            errorMessage = "La contraseña actual es incorrecta."
+                            // Si todo está bien, llama a la función del ViewModel
+                            userViewModel.changePassword(currentPassword, newPassword)
                         }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(50.dp)
-            ) {
-                Text("CAMBIAR CONTRASEÑA")
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            if (errorMessage != null) {
-                Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
-            }
-            if (successMessage != null) {
-                Text(successMessage!!, color = Color(0xFF006400)) // Color verde oscuro
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("CAMBIAR CONTRASEÑA")
+                }
             }
         }
     }

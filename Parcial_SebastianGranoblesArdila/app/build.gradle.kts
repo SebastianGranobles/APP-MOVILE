@@ -2,19 +2,16 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.example.parcial_sebastiangranoblesardila"
-
-    // ⭐ ARREGLO 1: Subimos al SDK 36 como lo piden los errores.
     compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.parcial_sebastiangranoblesardila"
         minSdk = 24
-
-        // Alineamos el targetSdk también.
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -35,7 +32,6 @@ android {
         }
     }
     compileOptions {
-        // ⭐ ARREGLO 2: Usamos Java 17, recomendado para SDK 34+.
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -46,8 +42,6 @@ android {
         compose = true
     }
     composeOptions {
-        // ⭐ ARREGLO 3: Usamos una versión más reciente del compilador de Compose.
-        // La versión 1.5.1 es para SDK 34. Para SDK más nuevos, usamos una más alta.
         kotlinCompilerExtensionVersion = "1.5.14"
     }
     packaging {
@@ -58,15 +52,19 @@ android {
 }
 
 dependencies {
-    // Aquí no cambiaremos el BOM, dejaremos que Gradle resuelva las
-    // dependencias más nuevas que ya están en tu proyecto,
-    // pero ahora la compilación será compatible.
+    // Dependencias de Firebase (correctas y gestionadas por su BoM)
+    implementation(platform("com.google.firebase:firebase-bom:34.5.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
 
+    // Dependencias de AndroidX y otras
     implementation(libs.androidx.core.ktx)
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    implementation(platform("androidx.compose:compose-bom:2024.09.00"))
+    // Usamos la última versión estable recomendada del Compose BoM.
+    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
 
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
@@ -74,15 +72,19 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // Dependencias de Test
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
+
+    // ================= INICIO DE LA CORRECCIÓN =================
+    // Alineamos la versión del BoM en las pruebas con la versión principal.
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
+    // ================== FIN DE LA CORRECCIÓN ===================
+
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
-

@@ -1,48 +1,46 @@
 package com.example.parcial_sebastiangranoblesardila.presentation.viewmodel
 
-import android.net.Uri
-import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.parcial_sebastiangranoblesardila.model.PasswordChangeLog
+import com.example.parcial_sebastiangranoblesardila.model.User
+import com.google.firebase.auth.EmailAuthProvider
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class UserData(
-    val fullName: String,
-    val email: String,
-    val profileImageUri: Uri?,
-    val phone: String = "",
-    val age: String = "",
-    val city: String = "",
-    val nationality: String = ""
-)
-
-data class PasswordChangeLog(
-    val userEmail: String,
-    val oldPass: String,
-    val newPass: String,
-    val timestamp: String
-)
+enum class AuthState {
+    IDLE, LOADING, SUCCESS, ERROR
+}
 
 class UserViewModel : ViewModel() {
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val usersCollection = db.collection("users")
 
-    // --- ESTADO PÚBLICO ---
-    private val _userState = mutableStateOf<UserData?>(null)
-    val userState: State<UserData?> = _userState
+    private val authStateListener: FirebaseAuth.AuthStateListener
+    private val _authState = MutableStateFlow(AuthState.IDLE)
+    val authState = _authState.asStateFlow()
 
-    var isLoggedIn by mutableStateOf(false)
-        private set
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage = _errorMessage.asStateFlow()
 
-    val passwordChangeHistory = mutableStateListOf<PasswordChangeLog>()
-    var lastProfileUpdateTime by mutableStateOf(0L)
-        private set
+    private val _user = MutableStateFlow<User?>(null)
+    val user = _user.asStateFlow()
+
+    private val _passwordChangeHistory = MutableStateFlow<List<PasswordChangeLog>>(emptyList())
+    val passwordChangeHistory = _passwordChangeHistory.asStateFlow()
     val isProfileEditingLocked: Boolean
-        get() = (System.currentTimeMillis() - lastProfileUpdateTime) < 3 * 60 * 60 * 1000 // 3 horas
-
+        get() = (_user.value?.lastProfileUpdateTime ?: 0L) > 0 &&
+                (System.currentTimeMillis() - (_user.value?.lastProfileUpdateTime ?: 0L)) < 3 * 60 * 60 * 1000 // 3 horas
     val nationalities: List<String> = listOf(
         "Afgana", "Albanesa", "Alemana", "Andorrana", "Angoleña", "Antiguana", "Saudita",
         "Argelina", "Argentina", "Armenia", "Australiana", "Austríaca", "Azerbaiyana",
@@ -74,63 +72,143 @@ class UserViewModel : ViewModel() {
         "Turca", "Tuvaluana", "Ucraniana", "Ugandesa", "Uruguaya", "Uzbeka", "Vanuatuense",
         "Vaticana", "Venezolana", "Vietnamita", "Yemení", "Yibutiana", "Zambiana", "Zimbabuense"
     )
+    init {
 
-    private val hardcodedEmail = "sebastiangranobles@hotmail.com"
-    private var hardcodedPass by mutableStateOf("llulucasia2025")
-    private val hardcodedFullName = "Sebastian Granobles Ardila"
+        authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val firebaseUser = firebaseAuth.currentUser
+            if (firebaseUser != null) {
 
-    fun onLogin(email: String, pass: String): Boolean {
-        return if (email == hardcodedEmail && pass == hardcodedPass) {
-            _userState.value = UserData(
-                fullName = hardcodedFullName,
-                email = hardcodedEmail,
-                profileImageUri = null
+                if (_user.value == null) { // 🇪🇸 Solo carga si no están ya cargados. / 🇬🇧 Only load if not already loaded.
+                    loadUserData(firebaseUser.uid)
+                }
+                _authState.value = AuthState.SUCCESS
+            } else {
+                _user.value = null
+                _passwordChangeHistory.value = emptyList()
+                _authState.value = AuthState.IDLE
+            }
+        }
+        auth.addAuthStateListener(authStateListener)
+    }
+
+
+    override fun onCleared() {
+        super.onCleared()
+        auth.removeAuthStateListener(authStateListener)
+    }
+    fun login(email: String, password: String) = viewModelScope.launch {
+        _authState.value = AuthState.LOADING
+        try {
+
+            auth.signInWithEmailAndPassword(email, password).await()
+        } catch (e: Exception) {
+            _errorMessage.value = when (e) {
+                is FirebaseAuthInvalidCredentialsException -> "El correo o la contraseña no son correctos."
+                else -> e.message ?: "Error desconocido."
+            }
+            _authState.value = AuthState.ERROR
+        }
+    }
+
+    fun register(fullName: String, email: String, password: String) = viewModelScope.launch {
+        _authState.value = AuthState.LOADING
+        try {
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            val firebaseUser = result.user!!
+            val newUser = User(uid = firebaseUser.uid, fullName = fullName, email = email)
+            usersCollection.document(firebaseUser.uid).set(newUser).await()
+        } catch (e: Exception) {
+            _errorMessage.value = e.message ?: "Error en el registro."
+            _authState.value = AuthState.ERROR
+        }
+    }
+
+    fun updateUserInfo(phone: String, age: String, city: String, nationality: String) = viewModelScope.launch {
+        val currentUser = _user.value ?: return@launch
+        val updatedTimestamp = System.currentTimeMillis()
+        val updatedUser = currentUser.copy(
+            phone = phone,
+            age = age,
+            city = city,
+            nationality = nationality,
+            lastProfileUpdateTime = updatedTimestamp
+        )
+        try {
+            usersCollection.document(currentUser.uid).set(updatedUser).await()
+            _user.value = updatedUser
+        } catch (e: Exception) {
+            _errorMessage.value = "No se pudo actualizar el perfil."
+        }
+    }
+
+    fun changePassword(currentPass: String, newPass: String) = viewModelScope.launch {
+        _authState.value = AuthState.LOADING
+        val firebaseUser = auth.currentUser ?: return@launch
+        val credential = EmailAuthProvider.getCredential(firebaseUser.email!!, currentPass)
+        try {
+            firebaseUser.reauthenticate(credential).await()
+            firebaseUser.updatePassword(newPass).await()
+            val timestamp = System.currentTimeMillis()
+            val logEntry = PasswordChangeLog(
+                timestamp = timestamp,
+                dateString = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
             )
-            isLoggedIn = true
-            true
-        } else {
-            isLoggedIn = false
-            false
+            usersCollection.document(firebaseUser.uid)
+                .collection("passwordHistory")
+                .add(logEntry)
+                .await()
+            _authState.value = AuthState.SUCCESS
+        } catch (e: Exception) {
+            _errorMessage.value = when(e) {
+                is FirebaseAuthInvalidCredentialsException -> "La contraseña actual es incorrecta."
+                else -> "Error al cambiar la contraseña: ${e.message}"
+            }
+            _authState.value = AuthState.ERROR
+        }
+    }
+
+    fun deleteAccount() = viewModelScope.launch {
+        _authState.value = AuthState.LOADING
+        val firebaseUser = auth.currentUser
+        if (firebaseUser != null) {
+            try {
+                usersCollection.document(firebaseUser.uid).delete().await()
+                firebaseUser.delete().await()
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al borrar la cuenta. Es posible que necesites volver a iniciar sesión para completar esta acción."
+                _authState.value = AuthState.ERROR
+            }
+        }
+    }
+
+    private fun loadUserData(uid: String) = viewModelScope.launch {
+        try {
+            val document = usersCollection.document(uid).get().await()
+            _user.value = document.toObject(User::class.java)
+            loadPasswordHistory(uid)
+        } catch (e: Exception) {
+            _errorMessage.value = "Error al cargar el perfil."
+        }
+    }
+
+    private fun loadPasswordHistory(uid: String) = viewModelScope.launch {
+        try {
+            val snapshot = usersCollection.document(uid)
+                .collection("passwordHistory")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .get().await()
+            _passwordChangeHistory.value = snapshot.toObjects(PasswordChangeLog::class.java)
+        } catch (e: Exception) {
+            _errorMessage.value = "No se pudo cargar el historial."
         }
     }
 
     fun logout() {
-        isLoggedIn = false
-        _userState.value = null
+        auth.signOut()
     }
 
-    fun deleteAccount() {
-        logout()
-    }
-
-    fun onProfileImageChange(uri: Uri?) {
-        _userState.value = _userState.value?.copy(profileImageUri = uri)
-    }
-
-    fun updateUserInfo(phone: String, age: String, city: String, nationality: String) {
-        _userState.value = _userState.value?.copy(
-            phone = phone,
-            age = age,
-            city = city,
-            nationality = nationality
-        )
-
-        lastProfileUpdateTime = System.currentTimeMillis()
-    }
-
-    fun changePassword(currentPass: String, newPass: String): Boolean {
-        if (currentPass == this.hardcodedPass) {
-            val oldPassword = this.hardcodedPass
-            this.hardcodedPass = newPass
-            val logEntry = PasswordChangeLog(
-                userEmail = this.hardcodedEmail,
-                oldPass = oldPassword,
-                newPass = newPass,
-                timestamp = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date())
-            )
-            passwordChangeHistory.add(0, logEntry) // Añade al principio de la lista
-            return true
-        }
-        return false
+    fun resetAuthState() {
+        _authState.value = AuthState.IDLE
+        _errorMessage.value = null
     }
 }
