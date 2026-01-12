@@ -1,5 +1,9 @@
 package com.example.parcial_sebastiangranoblesardila.presentation.viewmodel
 
+import android.content.Context
+import android.net.Uri
+import android.os.Environment
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.parcial_sebastiangranoblesardila.model.PasswordChangeLog
@@ -7,25 +11,34 @@ import com.example.parcial_sebastiangranoblesardila.model.User
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Modelo de datos para las Citas (Local)
+// Modelo de datos para las Citas
 data class Appointment(
     val id: String = java.util.UUID.randomUUID().toString(),
+    val clientName: String,
+    val clientId: String,
+    val clientPhone: String,
+    val clientAddress: String,
     val brand: String,
+    val motoModel: String,
     val plate: String,
     val displacement: String,
     val service: String,
+    val diagnosis: String,
     val time: String,
-    val date: String
+    val date: String,
+    val status: String = "En Espera",
+    val photoBefore: String? = null,
+    val photoAfter: String? = null
 )
 
 enum class AuthState { IDLE, LOADING, SUCCESS, ERROR }
@@ -50,9 +63,8 @@ class UserViewModel : ViewModel() {
     private val _passwordChangeHistory = MutableStateFlow<List<PasswordChangeLog>>(emptyList())
     val passwordChangeHistory = _passwordChangeHistory.asStateFlow()
 
-    val nationalities = listOf("Colombiana", "Argentina", "Boliviana", "Brasileña", "Chilena", "Ecuatoriana", "Española", "Mexicana", "Venezolana")
+    val nationalities = listOf("Colombiana", "Argentina", "Chilena", "Mexicana", "Española")
 
-    // --- LÓGICA DE BLOQUEO DE PERFIL ---
     val isProfileEditingLocked: Boolean
         get() {
             val lastUpdate = _user.value?.lastProfileUpdateTime ?: 0L
@@ -64,66 +76,24 @@ class UserViewModel : ViewModel() {
         auth.addAuthStateListener { firebaseAuth ->
             val firebaseUser = firebaseAuth.currentUser
             if (firebaseUser != null) {
-                if (_user.value == null) loadUserData(firebaseUser.uid)
+                loadUserData(firebaseUser.uid)
                 _authState.value = AuthState.SUCCESS
             } else {
                 _user.value = null
-                _appointments.value = emptyList()
                 _authState.value = AuthState.IDLE
             }
         }
     }
 
-    // --- LÓGICA DE CITAS (MODIFICADA) ---
+    // --- FUNCIONES DE AUTENTICACIÓN (Resuelven error en LoginScreen y RegisterScreen) ---
 
-    /**
-     * Intenta agregar una cita.
-     * Retorna true si se agregó con éxito, false si rompe alguna validación.
-     */
-    fun addAppointment(brand: String, plate: String, displacement: String, service: String, time: String): Boolean {
-        val currentList = _appointments.value
-
-        // 1. Validar límite de 4 citas
-        if (currentList.size >= 4) {
-            _errorMessage.value = "Límite alcanzado: Máximo 4 citas permitidas."
-            return false
-        }
-
-        // 2. Validar que no se repita el horario
-        if (currentList.any { it.time == time }) {
-            _errorMessage.value = "Conflicto de horario: Ya tienes una cita a las $time."
-            return false
-        }
-
-        // 3. Crear y agregar la cita
-        val newAppointment = Appointment(
-            brand = brand,
-            plate = plate.uppercase(),
-            displacement = displacement,
-            service = service,
-            time = time,
-            date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-        )
-
-        _appointments.value = currentList + newAppointment
-        _errorMessage.value = null // Limpiar errores previos
-        return true
-    }
-
-    /**
-     * Elimina una cita específica por su ID
-     */
-    fun removeAppointment(id: String) {
-        _appointments.value = _appointments.value.filter { it.id != id }
-    }
-
-    // --- AUTENTICACIÓN ---
     fun login(email: String, password: String) = viewModelScope.launch {
         _authState.value = AuthState.LOADING
         try {
             auth.signInWithEmailAndPassword(email.trim(), password).await()
+            _authState.value = AuthState.SUCCESS
         } catch (e: Exception) {
-            _errorMessage.value = "Correo o clave incorrectos."
+            _errorMessage.value = "Correo o contraseña incorrectos"
             _authState.value = AuthState.ERROR
         }
     }
@@ -140,14 +110,9 @@ class UserViewModel : ViewModel() {
                 _authState.value = AuthState.SUCCESS
             }
         } catch (e: Exception) {
-            _errorMessage.value = e.localizedMessage ?: "Error en el registro."
+            _errorMessage.value = e.localizedMessage ?: "Error en el registro"
             _authState.value = AuthState.ERROR
         }
-    }
-
-    fun logout() {
-        auth.signOut()
-        resetAuthState()
     }
 
     fun resetAuthState() {
@@ -155,15 +120,42 @@ class UserViewModel : ViewModel() {
         _errorMessage.value = null
     }
 
-    // --- PERFIL Y SEGURIDAD ---
-    fun updateUserInfo(phone: String, age: String, city: String, nationality: String) {
-        val currentUser = _user.value ?: return
+    fun logout() {
+        auth.signOut()
+        _user.value = null
+        _appointments.value = emptyList()
+        resetAuthState()
+    }
+
+    // --- FUNCIONES DE CITAS ---
+
+    fun addAppointment(clientName: String, clientId: String, clientPhone: String, clientAddress: String,
+                       brand: String, motoModel: String, plate: String, displacement: String,
+                       service: String, diagnosis: String, time: String): Boolean {
+        val currentList = _appointments.value
+        if (currentList.size >= 4) { _errorMessage.value = "Máximo 4 citas"; return false }
+
+        val newAppointment = Appointment(
+            clientName = clientName, clientId = clientId, clientPhone = clientPhone, clientAddress = clientAddress,
+            brand = brand, motoModel = motoModel, plate = plate.uppercase(), displacement = displacement,
+            service = service, diagnosis = diagnosis, time = time,
+            date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+        )
+        _appointments.value = currentList + newAppointment
+        return true
+    }
+
+    fun removeAppointment(id: String) {
+        _appointments.value = _appointments.value.filter { it.id != id }
+    }
+
+    // --- OTRAS FUNCIONES (Perfil y Seguridad) ---
+
+    fun updateUserInfo(phone: String, age: String, city: String, nationality: String) = viewModelScope.launch {
+        val currentUser = _user.value ?: return@launch
         val updatedUser = currentUser.copy(phone = phone, age = age, city = city, nationality = nationality, lastProfileUpdateTime = System.currentTimeMillis())
+        usersCollection.document(currentUser.uid).set(updatedUser, SetOptions.merge()).await()
         _user.value = updatedUser
-        viewModelScope.launch {
-            try { usersCollection.document(currentUser.uid).set(updatedUser, SetOptions.merge()).await() }
-            catch (e: Exception) { _errorMessage.value = "Guardado localmente." }
-        }
     }
 
     fun changePassword(currentPass: String, newPass: String) = viewModelScope.launch {
@@ -175,18 +167,15 @@ class UserViewModel : ViewModel() {
             firebaseUser.updatePassword(newPass).await()
             _authState.value = AuthState.SUCCESS
         } catch (e: Exception) {
-            _errorMessage.value = "Error al cambiar contraseña."
+            _errorMessage.value = "Error al cambiar contraseña"
             _authState.value = AuthState.ERROR
         }
     }
 
     fun deleteAccount() = viewModelScope.launch {
         val firebaseUser = auth.currentUser ?: return@launch
-        try {
-            usersCollection.document(firebaseUser.uid).delete().await()
-            firebaseUser.delete().await()
-            _user.value = null
-        } catch (e: Exception) { _errorMessage.value = "Error al eliminar cuenta." }
+        usersCollection.document(firebaseUser.uid).delete().await()
+        firebaseUser.delete().await()
     }
 
     private fun loadUserData(uid: String) = viewModelScope.launch {

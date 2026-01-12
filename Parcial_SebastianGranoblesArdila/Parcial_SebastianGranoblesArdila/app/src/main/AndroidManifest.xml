@@ -3,6 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- RF-9 y RF-10: Permisos de Cámara -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -14,6 +17,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Parcial_SebastianGranoblesArdila"
         tools:targetApi="31">
+
+        <!-- CONFIGURACIÓN PARA PROVEER ARCHIVOS DE FOTOS -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.example.parcial_sebastiangranoblesardila.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <activity
             android:name=".MainActivity"
