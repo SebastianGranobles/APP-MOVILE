@@ -21,24 +21,45 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Modelo de datos para las Citas
+// Modelo de datos profesional para Gestión de Taller
 data class Appointment(
     val id: String = java.util.UUID.randomUUID().toString(),
+    // 1. Datos de la Moto
+    val plate: String,
+    val brand: String,
+    val model: String,
+    val year: String,
+    val displacement: String,
+    val type: String, // Automática / Mecánica
+    val color: String,
+    val mileage: String,
+    // 2. Datos del Cliente
     val clientName: String,
     val clientId: String,
-    val clientPhone: String,
-    val clientAddress: String,
-    val brand: String,
-    val motoModel: String,
-    val plate: String,
-    val displacement: String,
-    val service: String,
-    val diagnosis: String,
-    val time: String,
-    val date: String,
-    val status: String = "En Espera",
-    val photoBefore: String? = null,
-    val photoAfter: String? = null
+    val phone1: String,
+    val phone2: String, // WhatsApp
+    val email: String,
+    val address: String,
+    // 3. Servicios
+    val selectedServices: List<String>,
+    val problemDescription: String,
+    // 4. Control del Servicio
+    val entryDate: String,
+    val entryTime: String,
+    val estimatedDelivery: String,
+    val status: String = "Recibido", // Recibido, En diagnóstico, En reparación, Listo, Entregado
+    // 5. Liquidación
+    val laborCost: Double = 0.0,
+    val partsCost: Double = 0.0,
+    val totalCost: Double = 0.0,
+    val paymentMethod: String = "Efectivo",
+    val isPaid: Boolean = false,
+    // 6. Evidencia (Rutas de fotos)
+    val photoEntry: String? = null,
+    val photoDamage: String? = null,
+    val photoFinish: String? = null,
+    // 7. Observaciones
+    val mechanicNotes: String = ""
 )
 
 enum class AuthState { IDLE, LOADING, SUCCESS, ERROR }
@@ -80,12 +101,13 @@ class UserViewModel : ViewModel() {
                 _authState.value = AuthState.SUCCESS
             } else {
                 _user.value = null
+                _appointments.value = emptyList()
                 _authState.value = AuthState.IDLE
             }
         }
     }
 
-    // --- FUNCIONES DE AUTENTICACIÓN (Resuelven error en LoginScreen y RegisterScreen) ---
+    // --- FUNCIONES DE AUTENTICACIÓN ---
 
     fun login(email: String, password: String) = viewModelScope.launch {
         _authState.value = AuthState.LOADING
@@ -127,20 +149,16 @@ class UserViewModel : ViewModel() {
         resetAuthState()
     }
 
-    // --- FUNCIONES DE CITAS ---
+    // --- FUNCIONES DE CITAS (Actualizado para el nuevo formulario) ---
 
-    fun addAppointment(clientName: String, clientId: String, clientPhone: String, clientAddress: String,
-                       brand: String, motoModel: String, plate: String, displacement: String,
-                       service: String, diagnosis: String, time: String): Boolean {
+    fun addAppointment(newAppointment: Appointment): Boolean {
         val currentList = _appointments.value
-        if (currentList.size >= 4) { _errorMessage.value = "Máximo 4 citas"; return false }
+        if (currentList.size >= 4) {
+            _errorMessage.value = "Límite: Máximo 4 órdenes permitidas."
+            return false
+        }
 
-        val newAppointment = Appointment(
-            clientName = clientName, clientId = clientId, clientPhone = clientPhone, clientAddress = clientAddress,
-            brand = brand, motoModel = motoModel, plate = plate.uppercase(), displacement = displacement,
-            service = service, diagnosis = diagnosis, time = time,
-            date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-        )
+        // Podrías agregar aquí lógica para guardar en Firestore si lo deseas
         _appointments.value = currentList + newAppointment
         return true
     }
@@ -149,7 +167,7 @@ class UserViewModel : ViewModel() {
         _appointments.value = _appointments.value.filter { it.id != id }
     }
 
-    // --- OTRAS FUNCIONES (Perfil y Seguridad) ---
+    // --- OTRAS FUNCIONES ---
 
     fun updateUserInfo(phone: String, age: String, city: String, nationality: String) = viewModelScope.launch {
         val currentUser = _user.value ?: return@launch
@@ -183,5 +201,31 @@ class UserViewModel : ViewModel() {
             val document = usersCollection.document(uid).get().await()
             _user.value = document.toObject(User::class.java)
         } catch (e: Exception) { }
+    }
+
+    // Soporte para Fotos
+    fun createImageUri(context: Context): Uri {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        val file = File.createTempFile("MOTO_${timeStamp}_", ".jpg", storageDir)
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }
+    // --- AGREGAR ESTO AL USERVIEWMODEL ---
+
+    private val _finishedAppointments = MutableStateFlow<List<Appointment>>(emptyList())
+    val finishedAppointments = _finishedAppointments.asStateFlow()
+
+    fun finishAppointment(id: String) {
+        val app = _appointments.value.find { it.id == id }
+        if (app != null) {
+            // Lo agregamos a la lista de terminados con estado actualizado
+            _finishedAppointments.value = _finishedAppointments.value + app.copy(status = "Entregado")
+            // Lo eliminamos de la lista activa (esto libera el cupo de las 4 citas)
+            _appointments.value = _appointments.value.filter { it.id != id }
+        }
+    }
+
+    fun removeFinishedAppointment(id: String) {
+        _finishedAppointments.value = _finishedAppointments.value.filter { it.id != id }
     }
 }

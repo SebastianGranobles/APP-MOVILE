@@ -1,6 +1,5 @@
 package com.example.parcial_sebastiangranoblesardila.presentation
 
-import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,40 +17,56 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.Appointment
 import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.UserViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel) {
     val AppRed = Color(0xFFD32F2F)
     val scrollState = rememberScrollState()
-
-    // Validación de Placa: 3 letras, 2 números, 1 letra
     val plateRegex = remember { Regex("^[A-Z]{3}[0-9]{2}[A-Z]$") }
 
-    // Estados de Datos
+    // --- ESTADOS DEL FORMULARIO ---
+    // 1. Datos de la Moto
+    var plate by remember { mutableStateOf("") }
+    var brand by remember { mutableStateOf("") }
+    var modelLine by remember { mutableStateOf("") }
+    var year by remember { mutableStateOf("") }
+    var displacement by remember { mutableStateOf("") }
+    var motoType by remember { mutableStateOf("Mecánica") } // RadioButton
+    var motoColor by remember { mutableStateOf("") }
+    var mileage by remember { mutableStateOf("") }
+
+    // 2. Datos del Cliente
     var clientName by remember { mutableStateOf("") }
     var clientId by remember { mutableStateOf("") }
-    var clientPhone by remember { mutableStateOf("") }
+    var phone1 by remember { mutableStateOf("") }
+    var phone2 by remember { mutableStateOf("") }
+    var clientEmail by remember { mutableStateOf("") }
     var clientAddress by remember { mutableStateOf("") }
 
-    var selectedBrand by remember { mutableStateOf("") }
-    var plate by remember { mutableStateOf("") }
-    var selectedDisplacement by remember { mutableStateOf("") }
+    // 3. Servicios
+    val serviceOptions = listOf(
+        "Cambio de aceite", "Ajuste general", "Revisión de frenos",
+        "Kit de arrastre", "Batería", "Lavado", "Diagnóstico general", "Eléctrico"
+    )
+    val selectedServices = remember { mutableStateListOf<String>() }
+    var otherService by remember { mutableStateOf("") }
+    var problemDescription by remember { mutableStateOf("") }
 
-    // --- NUEVO ESTADO PARA EL SERVICIO ---
-    val services = listOf("Sincronización", "Cambio de Aceite", "Mantenimiento General", "Frenos", "Eléctrico")
-    var selectedService by remember { mutableStateOf("") }
-
-    var diagnosis by remember { mutableStateOf("") }
-    var selectedHour by remember { mutableStateOf("") }
-
-    val isPlateValid = plate.matches(plateRegex)
+    // 4. Control y Liquidación
+    var estimatedDelivery by remember { mutableStateOf("") }
+    var laborCost by remember { mutableStateOf("") }
+    var partsCost by remember { mutableStateOf("") }
+    var paymentMethod by remember { mutableStateOf("Efectivo") }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("REGISTRO DE SERVICIO", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("ORDEN DE ENTRADA TALLER", color = Color.White, fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = AppRed),
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -62,75 +77,153 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(scrollState).padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(scrollState)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SectionTitle("DATOS DEL CLIENTE")
-            OutlinedTextField(value = clientName, onValueChange = { clientName = it }, label = { Text("Nombre Cliente") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = clientId, onValueChange = { clientId = it }, label = { Text("Cédula (Dato Sensible)") }, modifier = Modifier.fillMaxWidth())
-
-            SectionTitle("DATOS TÉCNICOS")
-            AppointmentDropdown("Marca", listOf("Yamaha", "Honda", "Suzuki", "AKT", "Bajaj")) { selectedBrand = it }
+            // --- SECCIÓN 1: DATOS DE LA MOTO ---
+            SectionTitle("1. DATOS DE LA MOTOCICLETA")
             OutlinedTextField(
                 value = plate,
                 onValueChange = { if (it.length <= 6) plate = it.uppercase() },
-                label = { Text("Placa (ABC12D)") },
+                label = { Text("Placa (Ej: ABC12D) *") },
                 modifier = Modifier.fillMaxWidth(),
-                isError = plate.isNotEmpty() && !isPlateValid
+                isError = plate.isNotEmpty() && !plate.matches(plateRegex)
             )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppointmentDropdown("Marca", listOf("Yamaha", "Honda", "Suzuki", "AKT", "Bajaj", "KTM", "TVS"), Modifier.weight(1f)) { brand = it }
+                OutlinedTextField(value = modelLine, onValueChange = { modelLine = it }, label = { Text("Modelo/Línea") }, modifier = Modifier.weight(1f))
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = year, onValueChange = { year = it }, label = { Text("Año") }, modifier = Modifier.weight(1f))
+                OutlinedTextField(value = displacement, onValueChange = { displacement = it }, label = { Text("Cilindraje") }, modifier = Modifier.weight(1f))
+            }
 
-            SectionTitle("DETALLES DEL TRABAJO")
-            // --- AQUÍ EL USUARIO AHORA ELIGE EL SERVICIO ---
-            AppointmentDropdown("Tipo de Servicio", services) { selectedService = it }
+            Text("Tipo de Moto:", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = motoType == "Mecánica", onClick = { motoType = "Mecánica" })
+                Text("Mecánica")
+                Spacer(Modifier.width(16.dp))
+                RadioButton(selected = motoType == "Automática", onClick = { motoType = "Automática" })
+                Text("Automática")
+            }
+
+            OutlinedTextField(value = motoColor, onValueChange = { motoColor = it }, label = { Text("Color") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = mileage, onValueChange = { mileage = it }, label = { Text("Kilometraje Actual") }, modifier = Modifier.fillMaxWidth())
+
+            // --- SECCIÓN 2: DATOS DEL CLIENTE ---
+            SectionTitle("2. DATOS DEL DUEÑO")
+            OutlinedTextField(value = clientName, onValueChange = { clientName = it }, label = { Text("Nombre Completo *") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = clientId, onValueChange = { clientId = it }, label = { Text("Documento / Cédula") }, modifier = Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = phone1, onValueChange = { phone1 = it }, label = { Text("Teléfono 1") }, modifier = Modifier.weight(1f))
+                OutlinedTextField(value = phone2, onValueChange = { phone2 = it }, label = { Text("WhatsApp") }, modifier = Modifier.weight(1f))
+            }
+            OutlinedTextField(value = clientEmail, onValueChange = { clientEmail = it }, label = { Text("Correo Electrónico") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = clientAddress, onValueChange = { clientAddress = it }, label = { Text("Dirección") }, modifier = Modifier.fillMaxWidth())
+
+            // --- SECCIÓN 3: SERVICIOS Y SÍNTOMAS ---
+            SectionTitle("3. SERVICIOS Y DIAGNÓSTICO")
+            serviceOptions.forEach { service ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = selectedServices.contains(service),
+                        onCheckedChange = { if (it) selectedServices.add(service) else selectedServices.remove(service) }
+                    )
+                    Text(service, fontSize = 14.sp)
+                }
+            }
+            OutlinedTextField(value = otherService, onValueChange = { otherService = it }, label = { Text("Otro servicio...") }, modifier = Modifier.fillMaxWidth())
 
             OutlinedTextField(
-                value = diagnosis,
-                onValueChange = { diagnosis = it },
-                label = { Text("Diagnóstico / Observaciones") },
-                modifier = Modifier.fillMaxWidth().height(100.dp)
+                value = problemDescription,
+                onValueChange = { problemDescription = it },
+                label = { Text("Descripción detallada del problema") },
+                modifier = Modifier.fillMaxWidth().height(120.dp),
+                placeholder = { Text("Ej: Hace un ruido raro al acelerar...") }
             )
 
-            AppointmentDropdown("Hora de Ingreso", listOf("08:00 AM", "10:00 AM", "02:00 PM")) { selectedHour = it }
+            // --- SECCIÓN 4: CONTROL Y COSTOS ---
+            SectionTitle("4. CONTROL Y LIQUIDACIÓN")
+            OutlinedTextField(value = estimatedDelivery, onValueChange = { estimatedDelivery = it }, label = { Text("Fecha estimada entrega") }, modifier = Modifier.fillMaxWidth())
 
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = laborCost, onValueChange = { laborCost = it }, label = { Text("Mano de Obra $") }, modifier = Modifier.weight(1f))
+                OutlinedTextField(value = partsCost, onValueChange = { partsCost = it }, label = { Text("Repuestos $") }, modifier = Modifier.weight(1f))
+            }
+
+            AppointmentDropdown("Método de Pago", listOf("Efectivo", "Transferencia", "Tarjeta"), Modifier.fillMaxWidth()) { paymentMethod = it }
+
+            Spacer(Modifier.height(24.dp))
+
+            // --- BOTÓN DE GUARDADO ---
             Button(
                 onClick = {
-                    userViewModel.addAppointment(
+                    val labor = laborCost.toDoubleOrNull() ?: 0.0
+                    val parts = partsCost.toDoubleOrNull() ?: 0.0
+
+                    val newApp = Appointment(
+                        plate = plate,
+                        brand = brand,
+                        model = modelLine,
+                        year = year,
+                        displacement = displacement,
+                        type = motoType,
+                        color = motoColor,
+                        mileage = mileage,
                         clientName = clientName,
                         clientId = clientId,
-                        clientPhone = clientPhone,
-                        clientAddress = clientAddress,
-                        brand = selectedBrand,
-                        motoModel = "",
-                        plate = plate,
-                        displacement = selectedDisplacement,
-                        service = selectedService, // <-- Ahora enviamos lo seleccionado
-                        diagnosis = diagnosis,
-                        time = selectedHour
+                        phone1 = phone1,
+                        phone2 = phone2,
+                        email = clientEmail,
+                        address = clientAddress,
+                        selectedServices = selectedServices.toList() + if(otherService.isNotEmpty()) listOf(otherService) else emptyList(),
+                        problemDescription = problemDescription,
+                        entryDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()),
+                        entryTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
+                        estimatedDelivery = estimatedDelivery,
+                        laborCost = labor,
+                        partsCost = parts,
+                        totalCost = labor + parts,
+                        paymentMethod = paymentMethod
                     )
-                    navController.popBackStack()
+
+                    if (userViewModel.addAppointment(newApp)) {
+                        navController.popBackStack()
+                    }
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppRed),
-                enabled = clientName.isNotEmpty() && isPlateValid && selectedService.isNotEmpty()
+                shape = RoundedCornerShape(12.dp),
+                enabled = plate.matches(plateRegex) && clientName.isNotEmpty()
             ) {
-                Text("GUARDAR REGISTRO", fontWeight = FontWeight.Bold)
+                Text("GENERAR ORDEN DE ENTRADA", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
+            Spacer(Modifier.height(40.dp))
         }
     }
 }
 
 @Composable
 fun SectionTitle(title: String) {
-    Text(text = title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.fillMaxWidth())
+    Text(
+        text = title,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.ExtraBold,
+        color = Color.DarkGray,
+        modifier = Modifier.padding(vertical = 8.dp)
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppointmentDropdown(label: String, options: List<String>, onSelect: (String) -> Unit) {
+fun AppointmentDropdown(label: String, options: List<String>, modifier: Modifier = Modifier, onSelect: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var selectedOption by remember { mutableStateOf("") }
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }, modifier = modifier) {
         OutlinedTextField(
             value = selectedOption, onValueChange = {}, readOnly = true, label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
