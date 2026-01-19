@@ -17,7 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.UserViewModel
+// IMPORT CORREGIDO: Eliminamos la palabra 'presentation' del path
+import com.example.parcial_sebastiangranoblesardila.viewmodel.UserViewModel
 import kotlinx.coroutines.delay
 
 @Composable
@@ -36,8 +37,9 @@ fun SplashScreen(navController: NavController, userViewModel: UserViewModel) {
             )
         )
 
-        delay(2000) // Tiempo total de espera
+        delay(2000) // Tiempo total de espera de la splash
 
+        // Verificamos si hay un usuario logueado para decidir a dónde ir
         val destination = if (userViewModel.user.value != null) {
             "main_route"
         } else {
@@ -56,8 +58,8 @@ fun SplashScreen(navController: NavController, userViewModel: UserViewModel) {
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFD32F2F), // AppRed
-                        Color(0xFF8B0000)  // Rojo más oscuro para el fondo
+                        Color(0xFFD32F2F), // Rojo brillante
+                        Color(0xFF8B0000)  // Rojo oscuro
                     )
                 )
             ),
@@ -65,9 +67,8 @@ fun SplashScreen(navController: NavController, userViewModel: UserViewModel) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.scale(scale.value) // Aplicamos la animación
+            modifier = Modifier.scale(scale.value)
         ) {
-            // Círculo decorativo blanco detrás del icono
             Surface(
                 modifier = Modifier.size(140.dp),
                 shape = CircleShape,
@@ -85,7 +86,6 @@ fun SplashScreen(navController: NavController, userViewModel: UserViewModel) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Nombre de la marca
             Text(
                 text = "MOTOMAX",
                 fontSize = 40.sp,
@@ -103,7 +103,6 @@ fun SplashScreen(navController: NavController, userViewModel: UserViewModel) {
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Cargando...
             CircularProgressIndicator(
                 color = Color.White,
                 strokeWidth = 3.dp,

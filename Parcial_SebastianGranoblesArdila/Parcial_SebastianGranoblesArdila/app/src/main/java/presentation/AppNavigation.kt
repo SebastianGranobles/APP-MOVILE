@@ -5,7 +5,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.UserViewModel
+import com.example.parcial_sebastiangranoblesardila.viewmodel.UserViewModel
 
 @Composable
 fun AppNavigation() {

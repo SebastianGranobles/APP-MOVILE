@@ -1,5 +1,6 @@
 package com.example.parcial_sebastiangranoblesardila.presentation
 
+import android.icu.text.NumberFormat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -22,11 +23,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.Appointment
-import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.UserViewModel
+import com.example.parcial_sebastiangranoblesardila.viewmodel.UserViewModel
+import com.example.parcial_sebastiangranoblesardila.viewmodel.Appointment
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,11 +35,11 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
     val user by userViewModel.user.collectAsState()
     val appointments by userViewModel.appointments.collectAsState()
     val finishedAppointments by userViewModel.finishedAppointments.collectAsState()
+
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    // Estado para la Hoja Inferior (Citas Terminadas)
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
 
@@ -55,11 +55,12 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
 
     LaunchedEffect(user) {
         if (user == null) {
-            navController.navigate("login_route") { popUpTo("main_route") { inclusive = true } }
+            navController.navigate("login_route") {
+                popUpTo("main_route") { inclusive = true }
+            }
         }
     }
 
-    // --- HOJA INFERIOR (MODAL BOTTOM SHEET) PARA CITAS TERMINADAS ---
     if (showBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
@@ -67,25 +68,15 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
             containerColor = Color.White,
             dragHandle = { BottomSheetDefaults.DragHandle(color = myRed) }
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 32.dp)
-            ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
                 Text(
-                    text = "CITAS TERMINADAS DEL DÍA DE HOY",
+                    text = "HISTORIAL DE CITAS TERMINADAS",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.Black,
                     modifier = Modifier.padding(bottom = 16.dp).align(Alignment.CenterHorizontally)
                 )
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                ) {
+                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                     if (finishedAppointments.isEmpty()) {
                         Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                             Text("No hay registros terminados hoy.", color = Color.Gray)
@@ -111,7 +102,6 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Build, contentDescription = null) },
                     label = { Text("Agendar Cita Taller") },
@@ -119,22 +109,14 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
                     onClick = { scope.launch { drawerState.close(); delay(100); navController.navigate("appointment_route") } },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
-
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.History, contentDescription = null, tint = myBlue) },
                     label = { Text("CITAS TERMINADAS", color = myBlue, fontWeight = FontWeight.Bold) },
                     selected = false,
-                    onClick = {
-                        scope.launch {
-                            drawerState.close()
-                            showBottomSheet = true // Abre la hoja sin quitar el Dashboard
-                        }
-                    },
+                    onClick = { scope.launch { drawerState.close(); showBottomSheet = true } },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
-
                 Spacer(modifier = Modifier.weight(1f))
-
                 NavigationDrawerItem(
                     icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = myRed) },
                     label = { Text("Cerrar Sesión", color = myRed) },
@@ -165,25 +147,18 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
                 ) {
                     Spacer(modifier = Modifier.height(20.dp))
                     Surface(modifier = Modifier.size(130.dp), shape = CircleShape, color = Color.White, border = BorderStroke(4.dp, myRed), shadowElevation = 8.dp) {
-                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(25.dp).fillMaxSize(), tint = myGrey)
+                        Icon(imageVector = Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(25.dp).fillMaxSize(), tint = myGrey)
                     }
-                    Text(text = user?.fullName?.uppercase() ?: "PILOTO", fontSize = 26.sp, fontWeight = FontWeight.Black)
-
+                    Text(text = user?.fullName?.uppercase() ?: "PILOTO", fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color.Black)
                     Spacer(modifier = Modifier.height(32.dp))
-                    Text(
-                        text = "ÓRDENES ACTIVAS EN TALLER (${appointments.size}/4)",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = myRed,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
-                    )
+                    Text(text = "ÓRDENES ACTIVAS EN TALLER (${appointments.size}/4)", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = myRed, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp))
 
                     if (appointments.isNotEmpty()) {
                         appointments.forEach { cita ->
                             AppointmentCard(cita, userViewModel, currencyFormat, myRed, plateYellow, myGrey, isHistory = false)
                         }
                     } else {
-                        Text("No hay motos en reparación", color = myGrey, fontSize = 13.sp, modifier = Modifier.padding(30.dp))
+                        Text(text = "No hay motos en reparación", color = myGrey, fontSize = 13.sp, modifier = Modifier.padding(30.dp))
                     }
                     Spacer(modifier = Modifier.height(40.dp))
                 }
@@ -202,107 +177,155 @@ fun AppointmentCard(
     myGrey: Color,
     isHistory: Boolean
 ) {
+    val servicePrices = mapOf(
+        "Cambio de Aceite" to 60000.0,
+        "Ajuste General" to 140000.0,
+        "Kit de arrastre" to 70000.0,
+        "Batería" to 45000.0,
+        "Lavado" to 15000.0,
+        "Eléctrico" to 60000.0
+    )
+
+    var showFinishConfirm by remember { mutableStateOf(false) }
+
+    if (showFinishConfirm) {
+        AlertDialog(
+            onDismissRequest = { showFinishConfirm = false },
+            title = { Text("Finalizar Servicio") },
+            text = { Text("¿Deseas marcar el servicio de la placa ${cita.plate} como terminado?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showFinishConfirm = false
+                    userViewModel.finishAppointment(cita.id)
+                }) {
+                    Text("SÍ, FINALIZAR", color = Color(0xFF1976D2), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFinishConfirm = false }) { Text("CANCELAR") }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(6.dp),
         shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, if(isHistory) Color.LightGray else myRed.copy(alpha = 0.3f))
+        border = BorderStroke(1.dp, if (isHistory) Color.LightGray else myRed.copy(alpha = 0.3f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // 1. CABECERA
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "CLIENTE: ${cita.clientName.uppercase()}", fontSize = 10.sp, color = myRed, fontWeight = FontWeight.Bold)
-                    Text(text = "${cita.brand} ${cita.model}", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.Black)
+                    Text(text = "${cita.brand} ${cita.model}".uppercase(), fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.Black)
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Speed, contentDescription = null, modifier = Modifier.size(12.dp), tint = myGrey)
-                        Text(text = " ${cita.mileage} KM", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(12.dp), tint = myGrey)
-                        Text(text = " ${cita.year}", fontSize = 11.sp, color = myGrey)
+                    // Datos técnicos restaurados
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                        Icon(Icons.Default.SettingsInputComponent, null, Modifier.size(12.dp), tint = myGrey)
+                        Text(" ${cita.displacement} CC", fontSize = 11.sp, color = Color.DarkGray)
                         Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Default.SettingsInputComponent, contentDescription = null, modifier = Modifier.size(12.dp), tint = myGrey)
-                        Text(text = " ${cita.displacement}", fontSize = 11.sp, color = myGrey)
+                        Icon(Icons.Default.Speed, null, Modifier.size(12.dp), tint = myGrey)
+                        Text(" ${cita.mileage} KM", fontSize = 11.sp, color = Color.DarkGray, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Default.CalendarToday, null, Modifier.size(12.dp), tint = myGrey)
+                        Text(" ${cita.year}", fontSize = 11.sp, color = Color.DarkGray)
                     }
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    val (statusText, statusColor, statusIcon) = when(cita.status) {
-                        "En diagnóstico" -> Triple("DIAGNÓSTICO", Color(0xFFFB8C00), Icons.Default.Search)
-                        "En reparación" -> Triple("REPARACIÓN", Color(0xFF1976D2), Icons.Default.Build)
-                        "Listo" -> Triple("LISTO", Color(0xFF388E3C), Icons.Default.CheckCircle)
-                        "Entregado" -> Triple("ENTREGADO", Color.Gray, Icons.Default.DoneAll)
-                        else -> Triple("RECIBIDO", Color(0xFF757575), Icons.Default.AccessTime)
-                    }
-
-                    Surface(color = statusColor.copy(alpha = 0.1f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, statusColor)) {
-                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(statusIcon, contentDescription = null, modifier = Modifier.size(12.dp), tint = statusColor)
-                            Spacer(Modifier.width(4.dp))
-                            Text(text = statusText, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = statusColor)
-                        }
-                    }
-
-                    if (!isHistory) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = { userViewModel.finishAppointment(cita.id) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(28.dp),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("FINALIZAR", fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                Column {
-                    Surface(color = plateYellow, shape = RoundedCornerShape(4.dp), border = BorderStroke(1.dp, Color.Black)) {
-                        Text(text = cita.plate, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text(text = "TOTAL COMPLETO", fontSize = 8.sp, color = myGrey, fontWeight = FontWeight.Bold)
-                    Text(text = currencyFormat.format(cita.totalCost), fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color.Black)
-                    Text(text = "Pago: ${cita.paymentMethod}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF25D366))
-                        Text(text = " ${cita.phone1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                    }
-                    Text(text = cita.email, fontSize = 11.sp, color = myGrey)
-                }
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
-            Text(text = "SERVICIOS SOLICITADOS", fontSize = 9.sp, color = myGrey, fontWeight = FontWeight.Bold)
-            Text(text = cita.selectedServices.joinToString(", ").uppercase(), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = myRed)
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "SÍNTOMAS / PROBLEMA", fontSize = 9.sp, color = myGrey, fontWeight = FontWeight.Bold)
-            Text(text = cita.problemDescription.ifEmpty { "Sin descripción" }, fontSize = 13.sp, color = Color.DarkGray)
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column {
-                    Text(text = "INGRESO", fontSize = 9.sp, color = myGrey, fontWeight = FontWeight.Bold)
-                    Text(text = "${cita.entryDate} ${cita.entryTime}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                 }
                 IconButton(onClick = {
                     if (isHistory) userViewModel.removeFinishedAppointment(cita.id)
                     else userViewModel.removeAppointment(cita.id)
                 }) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = myRed.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Delete, null, tint = myRed.copy(alpha = 0.4f))
                 }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 2. PLACA, ESTADO Y MECÁNICO
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Surface(color = plateYellow, shape = RoundedCornerShape(4.dp), border = BorderStroke(1.dp, Color.Black)) {
+                    Text(text = cita.plate, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(text = "MECÁNICO ASIGNADO", fontSize = 8.sp, color = myGrey, fontWeight = FontWeight.Bold)
+                    Text(text = cita.mechanic.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF1976D2))
+                }
+            }
+
+            // 3. FECHA Y HORA DE SERVICIO
+            Surface(
+                modifier = Modifier.padding(top = 10.dp).fillMaxWidth(),
+                color = Color(0xFFF9F9F9),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(0.5.dp, Color.LightGray)
+            ) {
+                Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Event, null, Modifier.size(14.dp), tint = myRed)
+                    Text(" INGRESO: ${cita.entryDate} ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Default.Schedule, null, Modifier.size(14.dp), tint = myRed)
+                    Text(" HORA: ${cita.entryTime}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                }
+            }
+
+            // BOTÓN FINALIZAR (Solo si no es historial)
+            if (!isHistory) {
+                Button(
+                    onClick = { showFinishConfirm = true },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(36.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text("FINALIZAR SERVICIO", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
+
+            // 4. DESGLOSE DE COSTOS
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(text = "MANO DE OBRA", fontSize = 9.sp, color = myGrey, fontWeight = FontWeight.Bold)
+                    Text(text = currencyFormat.format(cita.laborCost), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(text = "REPUESTOS/SERVICIOS", fontSize = 9.sp, color = myGrey, fontWeight = FontWeight.Bold)
+                    Text(text = currencyFormat.format(cita.partsCost), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 5. GUÍA DE SERVICIOS
+            Text(text = "SERVICIOS SELECCIONADOS (GUÍA)", fontSize = 9.sp, color = myGrey, fontWeight = FontWeight.Bold)
+            Card(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)), shape = RoundedCornerShape(8.dp)) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    if (cita.selectedServices.isEmpty()) {
+                        Text("Solo mano de obra", fontSize = 11.sp, color = Color.Gray)
+                    } else {
+                        cita.selectedServices.forEach { servicio ->
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(text = "• $servicio", fontSize = 11.sp, color = Color.DarkGray)
+                                Text(text = currencyFormat.format(servicePrices[servicio] ?: 0.0), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 6. TOTAL FINAL
+            Row(
+                modifier = Modifier.fillMaxWidth().background(if (isHistory) Color(0xFFE8F5E9) else Color(0xFFFFEBEE), RoundedCornerShape(8.dp)).padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "TOTAL A PAGAR", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
+                Text(text = currencyFormat.format(cita.totalCost), fontSize = 20.sp, fontWeight = FontWeight.Black, color = if (isHistory) Color(0xFF2E7D32) else myRed)
             }
         }
     }

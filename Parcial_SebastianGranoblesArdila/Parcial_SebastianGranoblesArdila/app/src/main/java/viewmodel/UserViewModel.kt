@@ -1,139 +1,137 @@
-package com.example.parcial_sebastiangranoblesardila.presentation.viewmodel
+package com.example.parcial_sebastiangranoblesardila.viewmodel
 
-import android.content.Context
-import android.net.Uri
-import android.os.Environment
-import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.parcial_sebastiangranoblesardila.model.PasswordChangeLog
-import com.example.parcial_sebastiangranoblesardila.model.User
-import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import java.io.File
+import kotlinx.coroutines.flow.StateFlow
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
-// Modelo de datos profesional para Gestión de Taller
-data class Appointment(
-    val id: String = java.util.UUID.randomUUID().toString(),
-    // 1. Datos de la Moto
-    val plate: String,
-    val brand: String,
-    val model: String,
-    val year: String,
-    val displacement: String,
-    val type: String, // Automática / Mecánica
-    val color: String,
-    val mileage: String,
-    // 2. Datos del Cliente
-    val clientName: String,
-    val clientId: String,
-    val phone1: String,
-    val phone2: String, // WhatsApp
-    val email: String,
-    val address: String,
-    // 3. Servicios
-    val selectedServices: List<String>,
-    val problemDescription: String,
-    // 4. Control del Servicio
-    val entryDate: String,
-    val entryTime: String,
-    val estimatedDelivery: String,
-    val status: String = "Recibido", // Recibido, En diagnóstico, En reparación, Listo, Entregado
-    // 5. Liquidación
-    val laborCost: Double = 0.0,
-    val partsCost: Double = 0.0,
-    val totalCost: Double = 0.0,
-    val paymentMethod: String = "Efectivo",
-    val isPaid: Boolean = false,
-    // 6. Evidencia (Rutas de fotos)
-    val photoEntry: String? = null,
-    val photoDamage: String? = null,
-    val photoFinish: String? = null,
-    // 7. Observaciones
-    val mechanicNotes: String = ""
-)
-
+// --- MODELOS ---
 enum class AuthState { IDLE, LOADING, SUCCESS, ERROR }
 
+data class PasswordChangeLog(val dateString: String = "")
+
+data class User(
+    val fullName: String = "",
+    val email: String = "",
+    val phone: String = "",
+    val age: String = "",
+    val city: String = "",
+    val nationality: String = "",
+    val lastProfileUpdateTime: Long = 0L
+)
+
+data class Appointment(
+    val id: String = UUID.randomUUID().toString(),
+    val plate: String = "",
+    val brand: String = "",
+    val model: String = "",
+    val year: String = "",
+    val displacement: String = "",
+    val mileage: String = "",
+    val clientName: String = "",
+    val phone1: String = "",
+    val email: String = "",
+    val selectedServices: List<String> = emptyList(),
+    val problemDescription: String = "",
+    val entryDate: String = "",
+    val entryTime: String = "",
+    val laborCost: Double = 0.0,
+    val partsCost: Double = 0.0,
+    val totalCost: Double = laborCost + partsCost,
+    val paymentMethod: String = "Efectivo",
+    val status: String = "Recibido",
+    val mechanic: String = "Sin asignar",
+    val clientId: String = "",
+    val phone2: String = "",
+    val address: String = ""
+)
+
+// --- VIEWMODEL ---
 class UserViewModel : ViewModel() {
+
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
-    private val usersCollection = db.collection("users")
-
-    private val _authState = MutableStateFlow(AuthState.IDLE)
-    val authState = _authState.asStateFlow()
-
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage = _errorMessage.asStateFlow()
 
     private val _user = MutableStateFlow<User?>(null)
-    val user = _user.asStateFlow()
+    val user: StateFlow<User?> = _user
 
     private val _appointments = MutableStateFlow<List<Appointment>>(emptyList())
-    val appointments = _appointments.asStateFlow()
+    val appointments: StateFlow<List<Appointment>> = _appointments
+
+    private val _finishedAppointments = MutableStateFlow<List<Appointment>>(emptyList())
+    val finishedAppointments: StateFlow<List<Appointment>> = _finishedAppointments
+
+    private val _authState = MutableStateFlow(AuthState.IDLE)
+    val authState: StateFlow<AuthState> = _authState
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
 
     private val _passwordChangeHistory = MutableStateFlow<List<PasswordChangeLog>>(emptyList())
-    val passwordChangeHistory = _passwordChangeHistory.asStateFlow()
+    val passwordChangeHistory: StateFlow<List<PasswordChangeLog>> = _passwordChangeHistory
 
-    val nationalities = listOf("Colombiana", "Argentina", "Chilena", "Mexicana", "Española")
+    private val _isProfileEditingLocked = MutableStateFlow(false)
+    val isProfileEditingLocked: StateFlow<Boolean> = _isProfileEditingLocked
 
-    val isProfileEditingLocked: Boolean
-        get() {
-            val lastUpdate = _user.value?.lastProfileUpdateTime ?: 0L
-            if (lastUpdate == 0L) return false
-            return (System.currentTimeMillis() - lastUpdate) < 3 * 60 * 60 * 1000
-        }
-
-    init {
-        auth.addAuthStateListener { firebaseAuth ->
-            val firebaseUser = firebaseAuth.currentUser
-            if (firebaseUser != null) {
-                loadUserData(firebaseUser.uid)
-                _authState.value = AuthState.SUCCESS
-            } else {
-                _user.value = null
-                _appointments.value = emptyList()
-                _authState.value = AuthState.IDLE
-            }
-        }
-    }
+    val nationalities = listOf("Colombiana", "Venezolana", "Ecuatoriana", "Peruana", "Otra")
 
     // --- FUNCIONES DE AUTENTICACIÓN ---
 
-    fun login(email: String, password: String) = viewModelScope.launch {
-        _authState.value = AuthState.LOADING
-        try {
-            auth.signInWithEmailAndPassword(email.trim(), password).await()
-            _authState.value = AuthState.SUCCESS
-        } catch (e: Exception) {
-            _errorMessage.value = "Correo o contraseña incorrectos"
-            _authState.value = AuthState.ERROR
+    fun login(email: String, pass: String) {
+        if (email.isEmpty() || pass.isEmpty()) {
+            _errorMessage.value = "Por favor completa todos los campos"
+            return
         }
+        _authState.value = AuthState.LOADING
+        auth.signInWithEmailAndPassword(email, pass)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    _user.value = User(email = email, fullName = "Piloto MotoMax")
+                    _authState.value = AuthState.SUCCESS
+                } else {
+                    _authState.value = AuthState.ERROR
+                    _errorMessage.value = "Error: ${task.exception?.localizedMessage}"
+                }
+            }
     }
 
-    fun register(fullName: String, email: String, password: String) = viewModelScope.launch {
+    fun register(name: String, email: String, pass: String) {
+        if (name.isEmpty() || email.isEmpty() || pass.isEmpty()) {
+            _errorMessage.value = "Todos los campos son obligatorios"
+            return
+        }
         _authState.value = AuthState.LOADING
-        try {
-            val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
-            val firebaseUser = result.user
-            if (firebaseUser != null) {
-                val newUser = User(uid = firebaseUser.uid, fullName = fullName.trim(), email = email.trim())
-                usersCollection.document(firebaseUser.uid).set(newUser).await()
-                _user.value = newUser
-                _authState.value = AuthState.SUCCESS
+        auth.createUserWithEmailAndPassword(email, pass)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    _user.value = User(fullName = name, email = email)
+                    _authState.value = AuthState.SUCCESS
+                } else {
+                    _authState.value = AuthState.ERROR
+                    _errorMessage.value = "Error: ${task.exception?.localizedMessage}"
+                }
             }
-        } catch (e: Exception) {
-            _errorMessage.value = e.localizedMessage ?: "Error en el registro"
-            _authState.value = AuthState.ERROR
+    }
+
+    fun logout() {
+        auth.signOut()
+        _user.value = null
+        _authState.value = AuthState.IDLE
+    }
+
+    fun deleteAccount() {
+        val currentUser = auth.currentUser
+        currentUser?.delete()?.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                _user.value = null
+                _authState.value = AuthState.IDLE
+            } else {
+                _errorMessage.value = "No se pudo eliminar: ${task.exception?.localizedMessage}"
+            }
         }
     }
 
@@ -142,87 +140,76 @@ class UserViewModel : ViewModel() {
         _errorMessage.value = null
     }
 
-    fun logout() {
-        auth.signOut()
-        _user.value = null
-        _appointments.value = emptyList()
-        resetAuthState()
-    }
+    // --- CAMBIO DE CONTRASEÑA ---
 
-    // --- FUNCIONES DE CITAS (Actualizado para el nuevo formulario) ---
+    fun changePassword(oldPass: String, newPass: String) {
+        val firebaseUser = auth.currentUser
 
-    fun addAppointment(newAppointment: Appointment): Boolean {
-        val currentList = _appointments.value
-        if (currentList.size >= 4) {
-            _errorMessage.value = "Límite: Máximo 4 órdenes permitidas."
-            return false
+        if (firebaseUser == null || firebaseUser.email == null) {
+            _errorMessage.value = "No hay un usuario activo."
+            return
+        }
+        if (newPass.length < 6) {
+            _errorMessage.value = "La nueva contraseña debe tener al menos 6 caracteres."
+            return
         }
 
-        // Podrías agregar aquí lógica para guardar en Firestore si lo deseas
-        _appointments.value = currentList + newAppointment
+        _authState.value = AuthState.LOADING
+
+        val credential = EmailAuthProvider.getCredential(firebaseUser.email!!, oldPass)
+
+        firebaseUser.reauthenticate(credential).addOnCompleteListener { authTask ->
+            if (authTask.isSuccessful) {
+                firebaseUser.updatePassword(newPass).addOnCompleteListener { updateTask ->
+                    if (updateTask.isSuccessful) {
+                        val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                        val currentDate = sdf.format(Date())
+                        _passwordChangeHistory.value += PasswordChangeLog(currentDate)
+
+                        _authState.value = AuthState.SUCCESS
+                        _errorMessage.value = "Contraseña actualizada con éxito"
+                    } else {
+                        _errorMessage.value = "Error: ${updateTask.exception?.localizedMessage}"
+                        _authState.value = AuthState.ERROR
+                    }
+                }
+            } else {
+                _errorMessage.value = "La contraseña actual es incorrecta"
+                _authState.value = AuthState.ERROR
+            }
+        }
+    }
+
+    // --- FUNCIONES DE PERFIL ---
+
+    fun updateUserInfo(phone: String, age: String, city: String, nationality: String) {
+        _user.value = _user.value?.copy(
+            phone = phone,
+            age = age,
+            city = city,
+            nationality = nationality,
+            lastProfileUpdateTime = System.currentTimeMillis()
+        )
+        _isProfileEditingLocked.value = true
+    }
+
+    // --- FUNCIONES DE CITAS ---
+    fun addAppointment(app: Appointment): Boolean {
+        val finalApp = app.copy(totalCost = app.laborCost + app.partsCost)
+        _appointments.value += finalApp
         return true
+    }
+
+    fun finishAppointment(id: String) {
+        val app = _appointments.value.find { it.id == id }
+        app?.let {
+            _appointments.value = _appointments.value.filter { it.id != id }
+            _finishedAppointments.value += it.copy(status = "Listo")
+        }
     }
 
     fun removeAppointment(id: String) {
         _appointments.value = _appointments.value.filter { it.id != id }
-    }
-
-    // --- OTRAS FUNCIONES ---
-
-    fun updateUserInfo(phone: String, age: String, city: String, nationality: String) = viewModelScope.launch {
-        val currentUser = _user.value ?: return@launch
-        val updatedUser = currentUser.copy(phone = phone, age = age, city = city, nationality = nationality, lastProfileUpdateTime = System.currentTimeMillis())
-        usersCollection.document(currentUser.uid).set(updatedUser, SetOptions.merge()).await()
-        _user.value = updatedUser
-    }
-
-    fun changePassword(currentPass: String, newPass: String) = viewModelScope.launch {
-        _authState.value = AuthState.LOADING
-        val firebaseUser = auth.currentUser ?: return@launch
-        try {
-            val credential = EmailAuthProvider.getCredential(firebaseUser.email!!, currentPass)
-            firebaseUser.reauthenticate(credential).await()
-            firebaseUser.updatePassword(newPass).await()
-            _authState.value = AuthState.SUCCESS
-        } catch (e: Exception) {
-            _errorMessage.value = "Error al cambiar contraseña"
-            _authState.value = AuthState.ERROR
-        }
-    }
-
-    fun deleteAccount() = viewModelScope.launch {
-        val firebaseUser = auth.currentUser ?: return@launch
-        usersCollection.document(firebaseUser.uid).delete().await()
-        firebaseUser.delete().await()
-    }
-
-    private fun loadUserData(uid: String) = viewModelScope.launch {
-        try {
-            val document = usersCollection.document(uid).get().await()
-            _user.value = document.toObject(User::class.java)
-        } catch (e: Exception) { }
-    }
-
-    // Soporte para Fotos
-    fun createImageUri(context: Context): Uri {
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-        val file = File.createTempFile("MOTO_${timeStamp}_", ".jpg", storageDir)
-        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-    }
-    // --- AGREGAR ESTO AL USERVIEWMODEL ---
-
-    private val _finishedAppointments = MutableStateFlow<List<Appointment>>(emptyList())
-    val finishedAppointments = _finishedAppointments.asStateFlow()
-
-    fun finishAppointment(id: String) {
-        val app = _appointments.value.find { it.id == id }
-        if (app != null) {
-            // Lo agregamos a la lista de terminados con estado actualizado
-            _finishedAppointments.value = _finishedAppointments.value + app.copy(status = "Entregado")
-            // Lo eliminamos de la lista activa (esto libera el cupo de las 4 citas)
-            _appointments.value = _appointments.value.filter { it.id != id }
-        }
     }
 
     fun removeFinishedAppointment(id: String) {

@@ -12,26 +12,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-// ⭐ ¡Asegúrate de que la ruta de importación es la correcta! ⭐
-import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.AuthState
-import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.UserViewModel
+// ✅ IMPORTS CORREGIDOS: Se quitó la palabra "presentation" de la ruta
+import com.example.parcial_sebastiangranoblesardila.viewmodel.AuthState
+import com.example.parcial_sebastiangranoblesardila.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecuperarContraseñaScreen(navController: NavController, userViewModel: UserViewModel) {
 
-    // --- ESTADOS LOCALES PARA LOS CAMPOS DE TEXTO ---
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var localErrorMessage by remember { mutableStateOf<String?>(null) }
 
-    // --- OBSERVADORES DEL VIEWMODEL ---
+    // Recolectar estados del ViewModel de forma segura
     val authState by userViewModel.authState.collectAsState()
     val firebaseErrorMessage by userViewModel.errorMessage.collectAsState()
+
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+
     LaunchedEffect(authState) {
         when (authState) {
             AuthState.SUCCESS -> {
@@ -42,18 +43,16 @@ fun RecuperarContraseñaScreen(navController: NavController, userViewModel: User
                 navController.popBackStack()
             }
             AuthState.ERROR -> {
-
                 firebaseErrorMessage?.let {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar(it)
                     }
                 }
             }
-            else -> { /* No hacer nada en IDLE o LOADING */ }
+            else -> {}
         }
     }
 
-    // --- UI ---
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -61,7 +60,6 @@ fun RecuperarContraseñaScreen(navController: NavController, userViewModel: User
                 title = { Text("Cambiar Contraseña") },
                 navigationIcon = {
                     IconButton(onClick = {
-                        // Limpia el estado si el usuario cancela y se va
                         userViewModel.resetAuthState()
                         navController.popBackStack()
                     }) {
@@ -105,6 +103,7 @@ fun RecuperarContraseñaScreen(navController: NavController, userViewModel: User
                 modifier = Modifier.fillMaxWidth(),
                 isError = newPassword != confirmPassword && confirmPassword.isNotEmpty()
             )
+
             if (newPassword != confirmPassword && confirmPassword.isNotEmpty()) {
                 Text(
                     text = "Las contraseñas no coinciden",
@@ -130,16 +129,14 @@ fun RecuperarContraseñaScreen(navController: NavController, userViewModel: User
             } else {
                 Button(
                     onClick = {
-                        localErrorMessage = null // Limpiar errores locales
-                        userViewModel.resetAuthState() // Limpiar errores de Firebase
+                        localErrorMessage = null
+                        userViewModel.resetAuthState()
 
-                        // Validaciones locales antes de llamar al ViewModel
                         if (currentPassword.isBlank() || newPassword.isBlank() || confirmPassword.isBlank()) {
                             localErrorMessage = "Todos los campos son obligatorios."
                         } else if (newPassword != confirmPassword) {
                             localErrorMessage = "Las contraseñas nuevas no coinciden."
                         } else {
-                            // Si todo está bien, llama a la función del ViewModel
                             userViewModel.changePassword(currentPassword, newPassword)
                         }
                     },

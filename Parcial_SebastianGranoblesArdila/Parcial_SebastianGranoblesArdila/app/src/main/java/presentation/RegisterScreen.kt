@@ -17,23 +17,29 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation // Importante para mostrar el texto
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.AuthState
-import com.example.parcial_sebastiangranoblesardila.presentation.viewmodel.UserViewModel
+import com.example.parcial_sebastiangranoblesardila.viewmodel.AuthState
+import com.example.parcial_sebastiangranoblesardila.viewmodel.UserViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController, userViewModel: UserViewModel) {
+    val AppRed = Color(0xFFD32F2F)
+    val AppGrey = Color(0xFF757575)
+
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    // --- ESTADO PARA LA VISIBILIDAD DE LA CONTRASEÑA ---
+    var isPasswordVisible by remember { mutableStateOf(false) }
+
     val authState by userViewModel.authState.collectAsState()
     val errorMessage by userViewModel.errorMessage.collectAsState()
 
-    // Observar el estado de autenticación para navegar al éxito
     LaunchedEffect(authState) {
         if (authState == AuthState.SUCCESS) {
             navController.navigate("main_route") {
@@ -78,7 +84,6 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // TARJETA DE REGISTRO
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -125,7 +130,7 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // CAMPO CONTRASEÑA
+                    // --- CAMPO CONTRASEÑA CON EL OJO ---
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
@@ -133,7 +138,16 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel) {
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = AppRed) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        visualTransformation = PasswordVisualTransformation(),
+                        // Cambia entre puntos y texto plano según el estado
+                        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            val image = if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                            val description = if (isPasswordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+
+                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                Icon(imageVector = image, contentDescription = description, tint = AppGrey)
+                            }
+                        },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.Black,
                             unfocusedTextColor = Color.Black,
@@ -145,7 +159,6 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel) {
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // MENSAJE DE ERROR
                     if (errorMessage != null) {
                         Text(
                             text = errorMessage ?: "",
@@ -155,7 +168,6 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel) {
                         )
                     }
 
-                    // BOTÓN REGISTRAR
                     Button(
                         onClick = { userViewModel.register(fullName, email, password) },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -174,7 +186,6 @@ fun RegisterScreen(navController: NavController, userViewModel: UserViewModel) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // VOLVER AL LOGIN
             TextButton(onClick = { navController.popBackStack() }) {
                 Text("¿Ya tienes cuenta? Inicia sesión", color = Color.Black)
             }
