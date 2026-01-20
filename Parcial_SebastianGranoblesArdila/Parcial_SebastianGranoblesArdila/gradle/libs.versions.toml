@@ -13,6 +13,11 @@ composeBom = "2024.09.00"
 lifecycleViewmodelCompose = "2.9.4"
 navigationRuntimeKtx = "2.9.5"
 navigationCompose = "2.9.5"
+firebaseStorage = "22.0.1"
+firebaseDatabase = "22.0.1"
+firebaseAnalytics = "23.0.0"
+googleFirebaseAppdistribution = "5.2.0"
+firebaseAi = "17.8.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -34,9 +39,14 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "navigationRuntimeKtx" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+firebase-storage = { group = "com.google.firebase", name = "firebase-storage", version.ref = "firebaseStorage" }
+firebase-database = { group = "com.google.firebase", name = "firebase-database", version.ref = "firebaseDatabase" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics", version.ref = "firebaseAnalytics" }
+firebase-ai = { group = "com.google.firebase", name = "firebase-ai", version.ref = "firebaseAi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+google-firebase-appdistribution = { id = "com.google.firebase.appdistribution", version.ref = "googleFirebaseAppdistribution" }
 

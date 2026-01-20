@@ -35,7 +35,6 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
     val AppLightRed = Color(0xFFFFEBEE)
     val scrollState = rememberScrollState()
 
-    // Mantenemos el mapa para el cálculo interno del total
     val servicePrices = mapOf(
         "Cambio de Aceite" to 60000.0,
         "Ajuste General" to 140000.0,
@@ -45,7 +44,6 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
         "Eléctrico" to 60000.0
     )
 
-    // --- ESTADOS DE LOS CAMPOS ---
     var plate by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("") }
@@ -61,7 +59,6 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
     var paymentMethod by remember { mutableStateOf("Efectivo") }
     val selectedServices = remember { mutableStateListOf<String>() }
 
-    // --- LÓGICA DE HORARIOS (L-V 9AM-5PM) ---
     val calendar = Calendar.getInstance()
     val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
     val hourOfDay = calendar.get(Calendar.HOUR_OF_DAY)
@@ -172,7 +169,6 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Alerta de horario
                 if (!isWorkingDay || !isWorkingHour) {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
@@ -257,7 +253,15 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                     }
                 }
 
-                SectionTitle("3. COSTOS Y VALORES")
+                OutlinedTextField(
+                    value = problemDescription,
+                    onValueChange = { problemDescription = it },
+                    label = { Text("Descripción del Problema") },
+                    modifier = Modifier.fillMaxWidth().height(100.dp),
+                    colors = textFieldColors
+                )
+
+                SectionTitle("3. COSTOS Y ASIGNACIÓN")
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
@@ -278,7 +282,8 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                     )
                 }
 
-                // TOTAL ESTIMADO (Resumen visual)
+                AppointmentDropdown("Mecánico Asignado *", mechanicsList, Modifier.fillMaxWidth()) { selectedMechanic = it }
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = AppRed.copy(alpha = 0.1f)),
@@ -294,9 +299,7 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                     }
                 }
 
-                SectionTitle("4. ASIGNACIÓN Y CLIENTE")
-
-                AppointmentDropdown("Mecánico Asignado *", mechanicsList, Modifier.fillMaxWidth()) { selectedMechanic = it }
+                SectionTitle("4. DATOS DEL CLIENTE")
 
                 OutlinedTextField(
                     value = clientName,
@@ -326,6 +329,8 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                 ) {
                     Text("GENERAR ORDEN DE SERVICIO", fontWeight = FontWeight.Bold, color = Color.White)
                 }
+
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }

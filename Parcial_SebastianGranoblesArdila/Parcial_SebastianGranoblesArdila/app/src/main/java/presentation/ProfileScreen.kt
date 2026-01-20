@@ -1,10 +1,7 @@
 package com.example.parcial_sebastiangranoblesardila.presentation
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.forEach
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -50,7 +47,16 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var expandedNationality by remember { mutableStateOf(false) }
 
-    // Cargar datos iniciales del usuario
+    // Estilo común para los campos de texto (Letras negras)
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color.Black,
+        unfocusedTextColor = Color.Black,
+        focusedBorderColor = LocalRed,
+        unfocusedBorderColor = Color.Gray,
+        focusedLabelColor = LocalRed
+    )
+
+    // Cargar datos iniciales del usuario desde Firebase
     LaunchedEffect(user) {
         user?.let {
             phone = it.phone
@@ -82,7 +88,7 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("¿Eliminar cuenta?", fontWeight = FontWeight.Bold) },
-            text = { Text("Esta acción es permanente y borrará todos tus datos de piloto.") },
+            text = { Text("Esta acción es permanente y borrará todos tus datos de piloto de la base de datos.") },
             confirmButton = {
                 TextButton(onClick = {
                     userViewModel.deleteAccount()
@@ -102,7 +108,7 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("MI PERFIL", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("MI PERFIL TÉCNICO", color = Color.White, fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalRed),
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -129,22 +135,20 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Foto de Perfil
+            // Foto de Perfil / Icono
             Surface(
-                modifier = Modifier.size(130.dp),
+                modifier = Modifier.size(120.dp),
                 shape = CircleShape,
                 color = Color.White,
                 border = BorderStroke(4.dp, LocalRed),
-                shadowElevation = 8.dp
+                shadowElevation = 4.dp
             ) {
-                Icon(Icons.Default.Person, null, modifier = Modifier
-                    .padding(25.dp)
-                    .fillMaxSize(), tint = LocalGrey)
+                Icon(Icons.Default.Person, null, modifier = Modifier.padding(25.dp).fillMaxSize(), tint = LocalGrey)
             }
 
             Text(
                 text = user?.fullName?.uppercase() ?: "PILOTO",
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
                 modifier = Modifier.padding(top = 16.dp)
             )
@@ -152,7 +156,7 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
 
             Spacer(Modifier.height(32.dp))
 
-            // Campos de edición
+            // CAMPOS DE EDICIÓN
             OutlinedTextField(
                 value = phone,
                 onValueChange = { phone = it },
@@ -160,7 +164,8 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
                 enabled = !isLocked,
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Default.Phone, null, tint = LocalRed) },
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = textFieldColors
             )
 
             Spacer(Modifier.height(12.dp))
@@ -172,7 +177,8 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
                     label = { Text("Edad") },
                     enabled = !isLocked,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = textFieldColors
                 )
                 OutlinedTextField(
                     value = city,
@@ -180,13 +186,14 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
                     label = { Text("Ciudad") },
                     enabled = !isLocked,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = textFieldColors
                 )
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // Selector de Nacionalidad
+            // Selector de Nacionalidad (Dropdown corregido)
             ExposedDropdownMenuBox(
                 expanded = expandedNationality && !isLocked,
                 onExpandedChange = { if (!isLocked) expandedNationality = !expandedNationality }
@@ -197,11 +204,10 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
                     readOnly = true,
                     label = { Text("Nacionalidad") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedNationality) },
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth(),
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
                     enabled = !isLocked,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = textFieldColors
                 )
                 ExposedDropdownMenu(
                     expanded = expandedNationality,
@@ -221,13 +227,13 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
 
             Spacer(Modifier.height(32.dp))
 
-            // Botón Guardar con estado de bloqueo
+            // BOTÓN GUARDAR (Se conecta con Firebase mediante UserViewModel)
             Button(
-                onClick = { userViewModel.updateUserInfo(phone, age, city, selectedNationality) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = !isLocked,
+                onClick = {
+                    userViewModel.updateUserInfo(phone, age, city, selectedNationality)
+                },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                enabled = !isLocked && phone.isNotEmpty() && age.isNotEmpty(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = LocalRed,
                     disabledContainerColor = Color.LightGray
@@ -237,16 +243,18 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
                 if (isLocked) {
                     Icon(Icons.Default.Lock, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("BLOQUEADO ($remainingTime)", fontSize = 14.sp)
+                    Text("BLOQUEADO POR 3H ($remainingTime)", fontSize = 13.sp)
                 } else {
-                    Text("GUARDAR CAMBIOS", fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.CloudUpload, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("SINCRONIZAR CON FIREBASE", fontWeight = FontWeight.Bold)
                 }
             }
 
             Spacer(Modifier.height(16.dp))
 
             TextButton(onClick = { showDeleteDialog = true }) {
-                Text("ELIMINAR MI CUENTA", color = LocalRed, fontWeight = FontWeight.Medium)
+                Text("ELIMINAR CUENTA PERMANENTEMENTE", color = LocalRed, fontWeight = FontWeight.Medium)
             }
 
             Spacer(Modifier.height(24.dp))

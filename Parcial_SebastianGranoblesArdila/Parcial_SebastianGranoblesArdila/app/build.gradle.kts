@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
+    alias(libs.plugins.google.firebase.appdistribution)
 }
 
 android {
@@ -73,6 +74,10 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation(libs.firebase.storage)
+    implementation(libs.firebase.database)
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.ai)
 
     // Dependencias de Test
     testImplementation(libs.junit)
