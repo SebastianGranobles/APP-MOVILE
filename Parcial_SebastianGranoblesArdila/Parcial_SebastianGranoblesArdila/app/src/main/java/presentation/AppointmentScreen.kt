@@ -9,14 +9,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -31,8 +30,8 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel) {
-    val AppRed = Color(0xFFD32F2F)
-    val AppLightRed = Color(0xFFFFEBEE)
+    val AppRed = Color(0xFFC62828)
+    val AppLightRed = Color(0xFFFDF7F7) // Esta es la variable de fondo
     val scrollState = rememberScrollState()
 
     val servicePrices = mapOf(
@@ -44,6 +43,7 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
         "Eléctrico" to 60000.0
     )
 
+    // ESTADOS DEL FORMULARIO
     var plate by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("") }
@@ -59,12 +59,28 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
     var paymentMethod by remember { mutableStateOf("Efectivo") }
     val selectedServices = remember { mutableStateListOf<String>() }
 
-    val calendar = Calendar.getInstance()
-    val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-    val hourOfDay = calendar.get(Calendar.HOUR_OF_DAY)
+    // CÁLCULOS
+    val totalServicesCost = selectedServices.sumOf { servicePrices[it] ?: 0.0 }
+    val labor = laborCost.toDoubleOrNull() ?: 0.0
+    val totalToPay = labor + totalServicesCost
 
-    val isWorkingDay = dayOfWeek in Calendar.MONDAY..Calendar.FRIDAY
-    val isWorkingHour = hourOfDay in 9..16
+    val mechanicsList = listOf("Sebastian Granobles", "Juan Perez", "Carlos Rodriguez", "Andrés Mendoza")
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    // VALIDACIÓN: Placa 6 char Y Celular exactamente 10 dígitos
+    val isFormValid = plate.length == 6 &&
+            clientName.isNotEmpty() &&
+            phone1.length == 10 &&
+            selectedMechanic.isNotEmpty()
+
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color.Black,
+        unfocusedTextColor = Color.Black,
+        focusedLabelColor = AppRed,
+        unfocusedLabelColor = Color.Gray,
+        focusedBorderColor = AppRed,
+        unfocusedBorderColor = Color.LightGray
+    )
 
     fun clearFields() {
         plate = ""; brand = ""; model = ""; year = ""; displacement = ""; mileage = ""
@@ -73,26 +89,6 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
         selectedServices.clear()
     }
 
-    val totalServicesCost = selectedServices.sumOf { servicePrices[it] ?: 0.0 }
-    val labor = laborCost.toDoubleOrNull() ?: 0.0
-    val totalToPay = labor + totalServicesCost
-
-    val mechanicsList = listOf("Sebastian Granobles", "Juan Perez", "Carlos Rodriguez", "Andrés Mendoza")
-    var showConfirmDialog by remember { mutableStateOf(false) }
-
-    val isFormValid = plate.length == 6 && clientName.isNotEmpty() &&
-            phone1.isNotEmpty() && selectedMechanic.isNotEmpty() &&
-            isWorkingDay && isWorkingHour
-
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color.Black,
-        unfocusedTextColor = Color.Black,
-        focusedLabelColor = AppRed,
-        unfocusedLabelColor = Color.Black,
-        focusedBorderColor = AppRed,
-        unfocusedBorderColor = Color.Gray
-    )
-
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
@@ -100,9 +96,10 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
             text = {
                 Column {
                     Text("Cliente: $clientName", color = Color.Black)
+                    Text("Celular: $phone1", color = Color.Gray)
                     Text("Moto: $brand $model ($plate)", color = Color.DarkGray)
                     Text("Mano de Obra: $${String.format("%,.0f", labor)}", color = Color.Black)
-                    Text("Repuestos/Servicios: $${String.format("%,.0f", totalServicesCost)}", color = Color.Black)
+                    Text("Servicios: $${String.format("%,.0f", totalServicesCost)}", color = Color.Black)
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     Text("TOTAL FINAL: $${String.format("%,.0f", totalToPay)}", fontWeight = FontWeight.ExtraBold, color = AppRed, fontSize = 18.sp)
                 }
@@ -160,7 +157,7 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Brush.verticalGradient(listOf(AppLightRed, Color.White)))
+                .background(AppLightRed) // CORREGIDO: Se usa AppLightRed para evitar error de compilación
         ) {
             Column(
                 modifier = Modifier
@@ -169,24 +166,6 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (!isWorkingDay || !isWorkingHour) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-                        border = BorderStroke(1.dp, AppRed)
-                    ) {
-                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, contentDescription = null, tint = AppRed)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "FUERA DE HORARIO: Atención Lunes a Viernes (9:00 AM - 5:00 PM)",
-                                color = AppRed,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
                 SectionTitle("1. DATOS DE LA MOTO")
 
                 OutlinedTextField(
@@ -203,7 +182,7 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                     OutlinedTextField(
                         value = model,
                         onValueChange = { model = it },
-                        label = { Text("Modelo *") },
+                        label = { Text("Referencia *") },
                         modifier = Modifier.weight(1f),
                         colors = textFieldColors
                     )
@@ -211,9 +190,9 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
-                        value = displacement,
-                        onValueChange = { if (it.all { c -> c.isDigit() }) displacement = it },
-                        label = { Text("Cilindraje (CC)") },
+                        value = year,
+                        onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) year = it },
+                        label = { Text("Año") },
                         modifier = Modifier.weight(1f),
                         colors = textFieldColors,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -221,14 +200,44 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                     OutlinedTextField(
                         value = mileage,
                         onValueChange = { if (it.all { c -> c.isDigit() }) mileage = it },
-                        label = { Text("Kilometraje (Km) *") },
+                        label = { Text("Kilometraje *") },
                         modifier = Modifier.weight(1f),
                         colors = textFieldColors,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }
 
-                SectionTitle("2. SERVICIOS Y SÍNTOMAS")
+                SectionTitle("2. DATOS DEL CLIENTE")
+
+                OutlinedTextField(
+                    value = clientName,
+                    onValueChange = { clientName = it },
+                    label = { Text("Nombre Completo *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = textFieldColors
+                )
+
+                // RESTRICCIÓN DE TELÉFONO (10 DÍGITOS COLOMBIA)
+                OutlinedTextField(
+                    value = phone1,
+                    onValueChange = {
+                        if (it.length <= 10 && it.all { c -> c.isDigit() }) {
+                            phone1 = it
+                        }
+                    },
+                    label = { Text("Celular (10 dígitos) *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = textFieldColors,
+                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = AppRed) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    supportingText = {
+                        if (phone1.isNotEmpty()) {
+                            Text("${phone1.length}/10", color = if (phone1.length == 10) Color(0xFF43A047) else Color.Red)
+                        }
+                    }
+                )
+
+                SectionTitle("3. SERVICIOS Y SÍNTOMAS")
 
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     servicePrices.keys.toList().chunked(2).forEach { rowItems ->
@@ -261,13 +270,13 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                     colors = textFieldColors
                 )
 
-                SectionTitle("3. COSTOS Y ASIGNACIÓN")
+                SectionTitle("4. COSTOS Y MECÁNICO")
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = laborCost,
                         onValueChange = { if (it.all { c -> c.isDigit() }) laborCost = it },
-                        label = { Text("Mano de Obra ($) *") },
+                        label = { Text("Mano de Obra ($)") },
                         modifier = Modifier.weight(1f),
                         colors = textFieldColors,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -275,7 +284,7 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                     OutlinedTextField(
                         value = String.format("%,.0f", totalServicesCost),
                         onValueChange = {},
-                        label = { Text("Total Repuestos ($)") },
+                        label = { Text("Servicios ($)") },
                         modifier = Modifier.weight(1f),
                         colors = textFieldColors,
                         readOnly = true
@@ -284,10 +293,13 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
 
                 AppointmentDropdown("Mecánico Asignado *", mechanicsList, Modifier.fillMaxWidth()) { selectedMechanic = it }
 
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // TOTAL VISUAL
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = AppRed.copy(alpha = 0.1f)),
-                    border = BorderStroke(2.dp, AppRed)
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                    border = BorderStroke(1.dp, AppRed)
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -298,27 +310,6 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
                         Text("$${String.format("%,.0f", totalToPay)}", fontSize = 22.sp, fontWeight = FontWeight.Black, color = AppRed)
                     }
                 }
-
-                SectionTitle("4. DATOS DEL CLIENTE")
-
-                OutlinedTextField(
-                    value = clientName,
-                    onValueChange = { clientName = it },
-                    label = { Text("Nombre del Cliente *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = textFieldColors
-                )
-
-                OutlinedTextField(
-                    value = phone1,
-                    onValueChange = { if (it.all { c -> c.isDigit() }) phone1 = it },
-                    label = { Text("Teléfono *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = textFieldColors,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
                     onClick = { showConfirmDialog = true },
@@ -338,7 +329,13 @@ fun AppointmentScreen(navController: NavController, userViewModel: UserViewModel
 
 @Composable
 private fun SectionTitle(title: String) {
-    Text(title, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black, modifier = Modifier.padding(top = 8.dp))
+    Text(
+        text = title,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.ExtraBold,
+        color = Color.Black,
+        modifier = Modifier.padding(top = 8.dp)
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -355,7 +352,11 @@ private fun AppointmentDropdown(label: String, options: List<String>, modifier: 
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier.menuAnchor().fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Black, unfocusedTextColor = Color.Black)
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                focusedBorderColor = Color(0xFFC62828)
+            )
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->

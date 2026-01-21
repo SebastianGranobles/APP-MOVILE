@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,7 +50,6 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
     val plateYellow = Color(0xFFFFD54F)
     val myBlue = Color(0xFF1976D2)
 
-    // Corrección para evitar el Warning de Locale deprecated
     val localeCo = Locale.Builder().setLanguage("es").setRegion("CO").build()
     val currencyFormat = NumberFormat.getCurrencyInstance(localeCo).apply {
         maximumFractionDigits = 0
@@ -153,13 +153,12 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
                     }
                     Text(text = user?.fullName?.uppercase() ?: "PILOTO", fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color.Black)
 
-                    // DATOS DE FIREBASE
                     Text(text = "Ciudad: ${user?.city.takeIf { !it.isNullOrBlank() } ?: "No asignada"}", fontSize = 14.sp, color = myGrey)
                     Text(text = "Nacionalidad: ${user?.nationality.takeIf { !it.isNullOrBlank() } ?: "No registrada"}", fontSize = 12.sp, color = myGrey)
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    Text(text = "ÓRDENES ACTIVAS EN TALLER (${appointments.size}/4)", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = myRed, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp))
+                    Text(text = "ÓRDENES ACTIVAS EN TALLER", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = myRed, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp))
 
                     if (appointments.isNotEmpty()) {
                         appointments.forEach { cita ->
@@ -171,7 +170,6 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // BOTÓN AJUSTES DE PERFIL (Vínculo a Firebase)
                     Button(
                         onClick = { navController.navigate("profile_route") },
                         modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp),
@@ -229,10 +227,11 @@ fun AppointmentCard(
         border = BorderStroke(1.dp, if (isHistory) Color.LightGray else myRed.copy(alpha = 0.3f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // ENCABEZADO: CLIENTE, MOTO Y BORRAR
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "CLIENTE: ${cita.clientName.uppercase()}", fontSize = 10.sp, color = myRed, fontWeight = FontWeight.Bold)
-                    Text(text = "${cita.brand} ${cita.model}".uppercase(), fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.Black)
+                    Text(text = "${cita.brand} ${cita.model}".uppercase(), fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color.Black)
                 }
                 IconButton(onClick = {
                     if (isHistory) userViewModel.removeFinishedAppointment(cita.id)
@@ -242,31 +241,81 @@ fun AppointmentCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
+            // LÍNEA DE PLACA, TELÉFONO Y MECÁNICO
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Surface(color = plateYellow, shape = RoundedCornerShape(4.dp), border = BorderStroke(1.dp, Color.Black)) {
-                    Text(text = cita.plate, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(color = plateYellow, shape = RoundedCornerShape(4.dp), border = BorderStroke(1.dp, Color.Black)) {
+                        Text(text = cita.plate, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 14.sp, fontWeight = FontWeight.Black, color = Color.Black)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    // TELÉFONO A LA DERECHA DE LA PLACA
+                    Icon(Icons.Default.Phone, contentDescription = null, tint = Color(0xFF1976D2), modifier = Modifier.size(14.dp))
+                    Text(text = cita.phone1, fontSize = 13.sp, color = Color.DarkGray, fontWeight = FontWeight.Medium)
                 }
                 Text(text = "MECÁNICO: ${cita.mechanic.uppercase()}", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF1976D2))
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // GUÍA DE SERVICIOS SELECCIONADOS
+            if (cita.selectedServices.isNotEmpty()) {
+                Text(text = "SERVICIOS SELECCIONADOS:", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = myGrey)
+                Text(
+                    text = cita.selectedServices.joinToString(", "),
+                    fontSize = 12.sp,
+                    color = Color.Black,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (cita.problemDescription.isNotEmpty()) {
+                Text(
+                    text = "SÍNTOMAS: ${cita.problemDescription}",
+                    fontSize = 12.sp,
+                    fontStyle = FontStyle.Italic,
+                    color = myGrey,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             if (!isHistory) {
                 Button(
                     onClick = { showFinishConfirm = true },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(36.dp),
+                    modifier = Modifier.fillMaxWidth().height(38.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("FINALIZAR SERVICIO", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("FINALIZAR SERVICIO", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = "TOTAL A PAGAR", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
-                Text(text = currencyFormat.format(cita.totalCost), fontSize = 20.sp, fontWeight = FontWeight.Black, color = if (isHistory) Color(0xFF2E7D32) else myRed)
+            // MANO DE OBRA Y TOTAL
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(text = "MANO DE OBRA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = myGrey)
+                    Text(text = currencyFormat.format(cita.laborCost), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column {
+                        Text(text = "TOTAL A PAGAR", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
+                        Text(
+                            text = currencyFormat.format(cita.totalCost),
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (isHistory) Color(0xFF2E7D32) else myRed
+                        )
+                    }
+                    Text(text = cita.entryDate, color = myGrey, fontSize = 11.sp)
+                }
             }
         }
     }

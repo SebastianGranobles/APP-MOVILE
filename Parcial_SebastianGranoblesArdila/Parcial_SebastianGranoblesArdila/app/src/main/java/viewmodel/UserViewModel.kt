@@ -165,6 +165,7 @@ class UserViewModel : ViewModel() {
         _authState.value = AuthState.IDLE
     }
 
+    // --- SOLUCIÓN ERROR 1: deleteAccount ---
     fun deleteAccount() {
         val currentUser = auth.currentUser
         val uid = currentUser?.uid
@@ -184,19 +185,13 @@ class UserViewModel : ViewModel() {
         _errorMessage.value = null
     }
 
-    // --- CAMBIO DE CONTRASEÑA ---
-
+    // --- SOLUCIÓN ERROR 2: changePassword ---
     fun changePassword(oldPass: String, newPass: String) {
         val firebaseUser = auth.currentUser
         if (firebaseUser == null || firebaseUser.email == null) {
             _errorMessage.value = "No hay un usuario activo."
             return
         }
-        if (newPass.length < 6) {
-            _errorMessage.value = "La nueva contraseña debe tener al menos 6 caracteres."
-            return
-        }
-
         _authState.value = AuthState.LOADING
         val credential = EmailAuthProvider.getCredential(firebaseUser.email!!, oldPass)
 
@@ -222,7 +217,6 @@ class UserViewModel : ViewModel() {
     }
 
     // --- FUNCIONES DE PERFIL ---
-
     fun updateUserInfo(phone: String, age: String, city: String, nationality: String) {
         val currentUid = auth.currentUser?.uid ?: return
         val updateTime = System.currentTimeMillis()
@@ -236,7 +230,6 @@ class UserViewModel : ViewModel() {
         )
 
         _authState.value = AuthState.LOADING
-
         db.collection("users").document(currentUid).update(updatedData)
             .addOnSuccessListener {
                 _user.value = _user.value?.copy(
@@ -248,16 +241,15 @@ class UserViewModel : ViewModel() {
                 )
                 _isProfileEditingLocked.value = true
                 _authState.value = AuthState.SUCCESS
-                _errorMessage.value = "Perfil actualizado en Firebase"
+                _errorMessage.value = "Perfil actualizado"
             }
             .addOnFailureListener { e ->
-                _errorMessage.value = "Error al guardar en la nube: ${e.localizedMessage}"
+                _errorMessage.value = "Error: ${e.localizedMessage}"
                 _authState.value = AuthState.ERROR
             }
     }
 
-    // --- FUNCIONES DE CITAS (SINCRONIZADAS CON FIRESTORE) ---
-
+    // --- FUNCIONES DE CITAS (MODO PRUEBAS) ---
     fun fetchUserAppointments(uid: String) {
         db.collection("appointments")
             .whereEqualTo("clientId", uid)
@@ -267,32 +259,24 @@ class UserViewModel : ViewModel() {
                 _appointments.value = list.filter { it.status != "Listo" }
                 _finishedAppointments.value = list.filter { it.status == "Listo" }
             }
-            .addOnFailureListener { e ->
-                _errorMessage.value = "Error al cargar citas: ${e.localizedMessage}"
-            }
     }
 
     fun addAppointment(app: Appointment): Boolean {
         val currentUid = auth.currentUser?.uid ?: return false
-        val finalApp = app.copy(
-            clientId = currentUid,
-            totalCost = app.laborCost + app.partsCost
-        )
+        val finalApp = app.copy(clientId = currentUid)
 
-        db.collection("appointments").document(finalApp.id)
-            .set(finalApp)
+        db.collection("appointments").document(finalApp.id).set(finalApp)
             .addOnSuccessListener {
-                _appointments.value += finalApp
-            }
-            .addOnFailureListener { e ->
-                _errorMessage.value = "Error al guardar cita: ${e.localizedMessage}"
+                val newList = _appointments.value.toMutableList()
+                newList.removeAll { it.id == finalApp.id }
+                newList.add(finalApp)
+                _appointments.value = newList
             }
         return true
     }
 
     fun finishAppointment(id: String) {
-        db.collection("appointments").document(id)
-            .update("status", "Listo")
+        db.collection("appointments").document(id).update("status", "Listo")
             .addOnSuccessListener {
                 val app = _appointments.value.find { it.id == id }
                 app?.let {
