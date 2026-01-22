@@ -18,6 +18,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Parcial_SebastianGranoblesArdila"
         tools:targetApi="31">
+        <service
+            android:name=".utils.MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <!-- CONFIGURACIÓN PARA PROVEER ARCHIVOS DE FOTOS -->
         <provider

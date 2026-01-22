@@ -19,16 +19,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.parcial_sebastiangranoblesardila.viewmodel.UserViewModel
 import com.example.parcial_sebastiangranoblesardila.viewmodel.Appointment
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.*
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +64,17 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
             navController.navigate("login_route") {
                 popUpTo("main_route") { inclusive = true }
             }
+        } else {
+            // 1. Iniciar escucha de citas
+            userViewModel.startAppointmentsRealtimeListener()
+
+            // 2. SUSCRIBIR AL TEMA DE NOTIFICACIONES GLOBALES
+            FirebaseMessaging.getInstance().subscribeToTopic("taller")
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        println("Suscripción exitosa al tema: taller")
+                    }
+                }
         }
     }
 
@@ -81,11 +96,11 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
                 Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                     if (finishedAppointments.isEmpty()) {
                         Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                            Text("No hay registros terminados hoy.", color = Color.Gray)
+                            Text("No hay registros terminados.", color = Color.Gray)
                         }
                     } else {
                         finishedAppointments.forEach { cita ->
-                            AppointmentCard(cita, userViewModel, currencyFormat, myRed, plateYellow, myGrey, isHistory = true)
+                            AppointmentCard(cita, userViewModel, currencyFormat, myRed, plateYellow, myGrey, myBlue, isHistory = true, userRole = user?.role ?: "ASESOR")
                         }
                     }
                 }
@@ -104,13 +119,17 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Build, contentDescription = null) },
-                    label = { Text("Agendar Cita Taller") },
-                    selected = false,
-                    onClick = { scope.launch { drawerState.close(); delay(100); navController.navigate("appointment_route") } },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+
+                if (user?.role == "ADMIN" || user?.role == "ASESOR") {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Build, contentDescription = null) },
+                        label = { Text("Agendar Cita Taller") },
+                        selected = false,
+                        onClick = { scope.launch { drawerState.close(); delay(100); navController.navigate("appointment_route") } },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                }
+
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.History, contentDescription = null, tint = myBlue) },
                     label = { Text("CITAS TERMINADAS", color = myBlue, fontWeight = FontWeight.Bold) },
@@ -152,9 +171,7 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
                         Icon(imageVector = Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(25.dp).fillMaxSize(), tint = myGrey)
                     }
                     Text(text = user?.fullName?.uppercase() ?: "PILOTO", fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color.Black)
-
-                    Text(text = "Ciudad: ${user?.city.takeIf { !it.isNullOrBlank() } ?: "No asignada"}", fontSize = 14.sp, color = myGrey)
-                    Text(text = "Nacionalidad: ${user?.nationality.takeIf { !it.isNullOrBlank() } ?: "No registrada"}", fontSize = 12.sp, color = myGrey)
+                    Text(text = "CARGO: ${user?.role ?: "ASESOR"}", fontSize = 14.sp, color = myRed, fontWeight = FontWeight.Bold)
 
                     Spacer(modifier = Modifier.height(32.dp))
 
@@ -162,7 +179,7 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
 
                     if (appointments.isNotEmpty()) {
                         appointments.forEach { cita ->
-                            AppointmentCard(cita, userViewModel, currencyFormat, myRed, plateYellow, myGrey, isHistory = false)
+                            AppointmentCard(cita, userViewModel, currencyFormat, myRed, plateYellow, myGrey, myBlue, false, user?.role ?: "ASESOR")
                         }
                     } else {
                         Text(text = "No hay motos en reparación", color = myGrey, fontSize = 13.sp, modifier = Modifier.padding(30.dp))
@@ -172,15 +189,14 @@ fun MainScreen(navController: NavController, userViewModel: UserViewModel) {
 
                     Button(
                         onClick = { navController.navigate("profile_route") },
-                        modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = myRed),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White)
+                        Icon(Icons.Default.Settings, null, tint = Color.White)
                         Spacer(Modifier.width(8.dp))
-                        Text("AJUSTES DE PERFIL", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("AJUSTES DE PERFIL", fontWeight = FontWeight.Bold)
                     }
-
                     Spacer(modifier = Modifier.height(40.dp))
                 }
             }
@@ -196,7 +212,9 @@ fun AppointmentCard(
     myRed: Color,
     plateYellow: Color,
     myGrey: Color,
-    isHistory: Boolean
+    myBlue: Color,
+    isHistory: Boolean,
+    userRole: String
 ) {
     var showFinishConfirm by remember { mutableStateOf(false) }
 
@@ -204,18 +222,16 @@ fun AppointmentCard(
         AlertDialog(
             onDismissRequest = { showFinishConfirm = false },
             title = { Text("Finalizar Servicio") },
-            text = { Text("¿Deseas marcar el servicio de la placa ${cita.plate} como terminado?") },
+            text = { Text("¿Deseas marcar la placa ${cita.plate} como terminada?") },
             confirmButton = {
                 TextButton(onClick = {
                     showFinishConfirm = false
                     userViewModel.finishAppointment(cita.id)
                 }) {
-                    Text("SÍ, FINALIZAR", color = Color(0xFF1976D2), fontWeight = FontWeight.Bold)
+                    Text("SÍ, FINALIZAR", color = myBlue, fontWeight = FontWeight.Bold)
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showFinishConfirm = false }) { Text("CANCELAR") }
-            }
+            dismissButton = { TextButton(onClick = { showFinishConfirm = false }) { Text("CANCELAR") } }
         )
     }
 
@@ -227,89 +243,101 @@ fun AppointmentCard(
         border = BorderStroke(1.dp, if (isHistory) Color.LightGray else myRed.copy(alpha = 0.3f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // ENCABEZADO: CLIENTE, MOTO Y BORRAR
+            // ENCABEZADO
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "CLIENTE: ${cita.clientName.uppercase()}", fontSize = 10.sp, color = myRed, fontWeight = FontWeight.Bold)
                     Text(text = "${cita.brand} ${cita.model}".uppercase(), fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color.Black)
                 }
-                IconButton(onClick = {
-                    if (isHistory) userViewModel.removeFinishedAppointment(cita.id)
-                    else userViewModel.removeAppointment(cita.id)
-                }) {
-                    Icon(Icons.Default.Delete, null, tint = myRed.copy(alpha = 0.4f))
+                if (userRole == "ADMIN") {
+                    IconButton(onClick = {
+                        if (isHistory) userViewModel.removeFinishedAppointment(cita.id)
+                        else userViewModel.removeAppointment(cita.id)
+                    }) {
+                        Icon(Icons.Default.Delete, null, tint = myRed.copy(alpha = 0.4f))
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // INFO TÉCNICA (CILINDRAJE, KM, AÑO)
+            Row(modifier = Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                IconInfo(Icons.Default.SettingsInputComponent, "${cita.displacement} CC", myGrey)
+                IconInfo(Icons.Default.Speed, "${cita.mileage} KM", myGrey)
+                IconInfo(Icons.Default.Event, cita.year, myGrey)
+            }
 
-            // LÍNEA DE PLACA, TELÉFONO Y MECÁNICO
+            // PLACA, TELÉFONO Y MECÁNICO
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(color = plateYellow, shape = RoundedCornerShape(4.dp), border = BorderStroke(1.dp, Color.Black)) {
-                        Text(text = cita.plate, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 14.sp, fontWeight = FontWeight.Black, color = Color.Black)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(0.6f)) {
+                    Surface(
+                        color = plateYellow,
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(1.dp, Color.Black)
+                    ) {
+                        Text(
+                            text = cita.plate.uppercase(),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.Black
+                        )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    // TELÉFONO A LA DERECHA DE LA PLACA
-                    Icon(Icons.Default.Phone, contentDescription = null, tint = Color(0xFF1976D2), modifier = Modifier.size(14.dp))
-                    Text(text = cita.phone1, fontSize = 13.sp, color = Color.DarkGray, fontWeight = FontWeight.Medium)
+                    Icon(Icons.Default.Phone, null, tint = myBlue, modifier = Modifier.size(14.dp))
+                    Text(text = cita.phone1, fontSize = 13.sp, color = Color.DarkGray)
                 }
-                Text(text = "MECÁNICO: ${cita.mechanic.uppercase()}", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF1976D2))
+                Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(0.4f)) {
+                    Text(text = "MECÁNICO", fontSize = 9.sp, color = myGrey)
+                    Text(text = cita.mechanic.uppercase(), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = myBlue, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // GUÍA DE SERVICIOS SELECCIONADOS
+            // GUÍA DE PRODUCTOS / SERVICIOS
             if (cita.selectedServices.isNotEmpty()) {
-                Text(text = "SERVICIOS SELECCIONADOS:", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = myGrey)
-                Text(
-                    text = cita.selectedServices.joinToString(", "),
-                    fontSize = 12.sp,
-                    color = Color.Black,
-                    fontWeight = FontWeight.Medium
-                )
+                Text(text = "SERVICIOS Y REPUESTOS:", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = myGrey)
+                Column(modifier = Modifier.fillMaxWidth().background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp)).padding(8.dp)) {
+                    cita.selectedServices.forEach { servicio ->
+                        Text(text = "• $servicio", fontSize = 11.sp, color = Color.Black)
+                    }
+                }
             }
 
-            if (cita.problemDescription.isNotEmpty()) {
-                Text(
-                    text = "SÍNTOMAS: ${cita.problemDescription}",
-                    fontSize = 12.sp,
-                    fontStyle = FontStyle.Italic,
-                    color = myGrey,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (!isHistory) {
+            // BOTÓN FINALIZAR (AZUL)
+            if (!isHistory && (userRole == "ADMIN" || userRole == "MECANICO")) {
+                Spacer(modifier = Modifier.height(12.dp))
                 Button(
                     onClick = { showFinishConfirm = true },
-                    modifier = Modifier.fillMaxWidth().height(38.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
-                    shape = RoundedCornerShape(8.dp)
+                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = myBlue),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("FINALIZAR SERVICIO", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("FINALIZAR TRABAJO", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
 
-            // MANO DE OBRA Y TOTAL
+            // DESGLOSE DE COSTOS
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(text = "MANO DE OBRA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = myGrey)
                     Text(text = currencyFormat.format(cita.laborCost), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                 }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(text = "REPUESTOS/INSUMOS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = myGrey)
+                    Text(text = currencyFormat.format(cita.partsCost), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column {
                         Text(text = "TOTAL A PAGAR", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
                         Text(
                             text = currencyFormat.format(cita.totalCost),
-                            fontSize = 22.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Black,
                             color = if (isHistory) Color(0xFF2E7D32) else myRed
                         )
@@ -318,5 +346,14 @@ fun AppointmentCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun IconInfo(icon: ImageVector, text: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(15.dp), tint = color)
+        Spacer(Modifier.width(4.dp))
+        Text(text, fontSize = 11.sp, color = Color.DarkGray, fontWeight = FontWeight.SemiBold)
     }
 }

@@ -38,6 +38,8 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
     val isLocked by userViewModel.isProfileEditingLocked.collectAsState()
     val nationalities = userViewModel.nationalities
 
+    // Estados locales (Agregado 'name' para sincronizar con la nueva firma del ViewModel)
+    var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
     var city by remember { mutableStateOf("") }
@@ -47,7 +49,6 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var expandedNationality by remember { mutableStateOf(false) }
 
-    // Estilo común para los campos de texto (Letras negras)
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.Black,
         unfocusedTextColor = Color.Black,
@@ -56,9 +57,9 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
         focusedLabelColor = LocalRed
     )
 
-    // Cargar datos iniciales del usuario desde Firebase
     LaunchedEffect(user) {
         user?.let {
+            name = it.fullName
             phone = it.phone
             age = it.age
             city = it.city
@@ -66,7 +67,6 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
         }
     }
 
-    // Lógica del contador de bloqueo (3 horas)
     LaunchedEffect(isLocked, user) {
         if (isLocked && user != null) {
             while (true) {
@@ -83,7 +83,6 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
         }
     }
 
-    // DIÁLOGO DE ELIMINACIÓN
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -135,7 +134,6 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Foto de Perfil / Icono
             Surface(
                 modifier = Modifier.size(120.dp),
                 shape = CircleShape,
@@ -146,17 +144,22 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
                 Icon(Icons.Default.Person, null, modifier = Modifier.padding(25.dp).fillMaxSize(), tint = LocalGrey)
             }
 
-            Text(
-                text = user?.fullName?.uppercase() ?: "PILOTO",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(top = 16.dp)
+            // Campo de Nombre Completo (Editable)
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Nombre del Administrador/Piloto") },
+                enabled = !isLocked,
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                leadingIcon = { Icon(Icons.Default.Badge, null, tint = LocalRed) },
+                shape = RoundedCornerShape(12.dp),
+                colors = textFieldColors
             )
-            Text(text = user?.email ?: "", fontSize = 14.sp, color = LocalGrey)
 
-            Spacer(Modifier.height(32.dp))
+            Text(text = user?.email ?: "", fontSize = 14.sp, color = LocalGrey, modifier = Modifier.padding(top = 8.dp))
 
-            // CAMPOS DE EDICIÓN
+            Spacer(Modifier.height(24.dp))
+
             OutlinedTextField(
                 value = phone,
                 onValueChange = { phone = it },
@@ -193,7 +196,6 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
 
             Spacer(Modifier.height(12.dp))
 
-            // Selector de Nacionalidad (Dropdown corregido)
             ExposedDropdownMenuBox(
                 expanded = expandedNationality && !isLocked,
                 onExpandedChange = { if (!isLocked) expandedNationality = !expandedNationality }
@@ -227,13 +229,13 @@ fun ProfileScreen(navController: NavController, userViewModel: UserViewModel) {
 
             Spacer(Modifier.height(32.dp))
 
-            // BOTÓN GUARDAR (Se conecta con Firebase mediante UserViewModel)
             Button(
                 onClick = {
-                    userViewModel.updateUserInfo(phone, age, city, selectedNationality)
+                    // SE CORRIGE: Ahora envía 5 parámetros incluyendo el nombre
+                    userViewModel.updateUserInfo(phone, age, city, selectedNationality, name)
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = !isLocked && phone.isNotEmpty() && age.isNotEmpty(),
+                enabled = !isLocked && phone.isNotEmpty() && name.isNotEmpty(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = LocalRed,
                     disabledContainerColor = Color.LightGray

@@ -8,11 +8,13 @@ plugins {
 
 android {
     namespace = "com.example.parcial_sebastiangranoblesardila"
+    // SE ACTUALIZA A 36 PARA COMPATIBILIDAD CON ANDROIDX CORE 1.17.0
     compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.parcial_sebastiangranoblesardila"
         minSdk = 24
+        // SE ACTUALIZA A 36
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -42,53 +44,42 @@ android {
     buildFeatures {
         compose = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
 }
 
 dependencies {
-    // Dependencias de Firebase (correctas y gestionadas por su BoM)
+    // === GESTIÓN DE FIREBASE ===
     implementation(platform("com.google.firebase:firebase-bom:34.5.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-ai")
 
-    // Dependencias de AndroidX y otras
-    implementation(libs.androidx.core.ktx)
+    // === ANDROIDX Y LIBRERÍAS DE UI ===
+    implementation(libs.androidx.core.ktx) // Esta es la que requiere SDK 36
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Usamos la última versión estable recomendada del Compose BoM.
+    // COMPOSE BOM
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
-
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation("io.coil-kt:coil-compose:2.6.0")
-    implementation(libs.firebase.storage)
-    implementation(libs.firebase.database)
-    implementation(libs.firebase.analytics)
-    implementation(libs.firebase.ai)
 
-    // Dependencias de Test
+    // OTROS
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // === DEPENDENCIAS DE TEST ===
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-
-    // ================= INICIO DE LA CORRECCIÓN =================
-    // Alineamos la versión del BoM en las pruebas con la versión principal.
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
-    // ================== FIN DE LA CORRECCIÓN ===================
-
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
